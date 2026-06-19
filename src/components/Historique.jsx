@@ -17,12 +17,13 @@ const exporterCSV = (historique) => {
   URL.revokeObjectURL(url);
 };
 
-export default function Historique({ historique, produits, boutiqueId, onRefresh, onImprimer, onWhatsApp, onRetour, voirBenefice = true, peutRetourner = true }) {
+export default function Historique({ historique, produits, boutiqueId, onRefresh, onImprimer, onWhatsApp, onRetour, voirBenefice = true, peutRetourner = true, peutModifier = false, onSupprimer }) {
   const [filtreDate, setFiltreDate] = useState("");
   const [filtreType, setFiltreType] = useState("tous");
   const [showReset, setShowReset] = useState(false);
   const [retourId, setRetourId] = useState(null);   // vente en cours de retour
   const [retourQtes, setRetourQtes] = useState({});  // qte à retourner par ligne
+  const [supprId, setSupprId] = useState(null);      // mouvement en confirmation de suppression
 
   const ouvrirRetour = (h) => {
     setRetourId(h.id);
@@ -133,8 +134,27 @@ export default function Historique({ historique, produits, boutiqueId, onRefresh
                       )}
                     </>
                   )}
+                  {peutModifier && onSupprimer && (
+                    <button onClick={() => setSupprId(supprId === h.id ? null : h.id)} title="Supprimer ce mouvement"
+                      style={{ background: C.red + "18", color: C.red, border: `1px solid ${C.red}33`, padding: "2px 6px", borderRadius: 4, fontSize: 10, cursor: "pointer" }}>🗑️</button>
+                  )}
                 </div>
               </div>
+
+              {/* CONFIRMATION DE SUPPRESSION */}
+              {supprId === h.id && peutModifier && onSupprimer && (
+                <div style={{ background: C.surface2, borderRadius: 8, border: `1px solid ${C.red}44`, padding: 10, marginBottom: 8 }}>
+                  <div style={{ fontSize: 11, color: C.red, marginBottom: 8 }}>
+                    ⚠️ Supprimer ce mouvement ? Le stock sera réajusté. L'action est tracée (audit).
+                  </div>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button onClick={() => { onSupprimer(h); setSupprId(null); }}
+                      style={{ flex: 1, padding: "7px 0", background: C.red, color: "#fff", border: "none", borderRadius: 6, fontWeight: "bold", fontSize: 12, cursor: "pointer" }}>Confirmer la suppression</button>
+                    <button onClick={() => setSupprId(null)}
+                      style={{ padding: "7px 14px", background: C.surface, color: C.muted, border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 12, cursor: "pointer" }}>Annuler</button>
+                  </div>
+                </div>
+              )}
 
               {/* PANNEAU DE RETOUR */}
               {retourId === h.id && peutRetour && peutRetourner && (

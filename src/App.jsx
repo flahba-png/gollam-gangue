@@ -355,6 +355,63 @@ export default function App() {
     setStatut(`✅ Retour enregistré : -${fmt(refund)} F remboursé, stock réintégré.`);
   };
 
+  // Trace cachée : enregistre une modification/suppression d'un mouvement
+  const loggerModif = async ({ table, cibleId, action, ancien, nouveau }) => {
+    if (!boutiqueActive) return;
+    try {
+      await supabase.from("logs_modifications").insert({
+        boutique_id: boutiqueActive.id,
+        proprietaire_id: boutiqueActive.proprietaire_id || null,
+        table_cible: table, cible_id: String(cibleId), action,
+        ancienne_valeur: ancien || null, nouvelle_valeur: nouveau || null,
+        user_nom: monNom,
+      });
+    } catch { /* table absente : on n'empêche pas l'action métier */ }
+  };
+
+  // Suppression d'un mouvement d'historique avec réintégration du stock + audit
+  const supprimerMouvement = async (h) => {
+    if (!boutiqueActive) return;
+    const uid = boutiqueActive.id;
+
+    // 1. Réintègre/retire le stock selon le type de mouvement
+    try {
+      if (h.type === "vente") {
+        // La vente avait décrémenté le stock → on le ré-ajoute
+        for (const l of (h.details_facture?.lignes || [])) {
+          const { data: p } = await supabase.from("produits").select("id, stock").eq("boutique_id", uid).ilike("nom", l.nom).maybeSingle();
+          if (p) await supabase.from("produits").update({ stock: (p.stock || 0) + (l.qte || 0) }).eq("id", p.id);
+        }
+        // Si vente à crédit, on retire la créance liée (meilleur effort)
+        if ((h.details_facture?.type || "").includes("Crédit") && h.details_facture?.client) {
+          await supabase.from("credits").delete().eq("boutique_id", uid).ilike("client", h.details_facture.client).eq("article", h.details_facture.article || "");
+        }
+      } else if (h.type === "retour") {
+        // Le retour avait ré-ajouté le stock → on le retire
+        for (const l of (h.details_facture?.lignes || [])) {
+          const { data: p } = await supabase.from("produits").select("id, stock").eq("boutique_id", uid).ilike("nom", l.nom).maybeSingle();
+          if (p) await supabase.from("produits").update({ stock: Math.max(0, (p.stock || 0) - (l.qte || 0)) }).eq("id", p.id);
+        }
+      } else if (h.type === "ajout") {
+        // L'ajout avait incrémenté le stock → on le retire (parse du texte "+Nx Nom")
+        const m = /\+(\d+)x\s+(.+)$/.exec(h.texte || "");
+        if (m) {
+          const qte = parseInt(m[1]) || 0;
+          const { data: p } = await supabase.from("produits").select("id, stock").eq("boutique_id", uid).ilike("nom", m[2].trim()).maybeSingle();
+          if (p) await supabase.from("produits").update({ stock: Math.max(0, (p.stock || 0) - qte) }).eq("id", p.id);
+        }
+      }
+    } catch { /* on continue : la suppression de la ligne reste prioritaire */ }
+
+    // 2. Trace cachée AVANT suppression (on garde l'ancienne valeur complète)
+    await loggerModif({ table: "historique", cibleId: h.id, action: "suppression", ancien: h });
+
+    // 3. Supprime la ligne d'historique
+    await supabase.from("historique").delete().eq("id", h.id);
+    await chargerDonnees();
+    setStatut("🗑️ Mouvement supprimé (stock réajusté, trace conservée).");
+  };
+
   // Saisie via formulaire : en ligne → écrit ; hors-ligne → met en file d'attente
   const enregistrerForm = async (donnees) => {
     if (!boutiqueActive) { setStatut("⚠️ Sélectionne une boutique d'abord."); return; }
@@ -612,8 +669,8 @@ export default function App() {
             <Transferts produits={produits} boutiques={boutiques} active={boutiqueActive} proprietaireId={session.user.id} transferts={transferts} onRefresh={chargerDonnees} onStatut={setStatut} />
           )
         )}
-        {onglet === "historique" && <Historique historique={historique} produits={produits} boutiqueId={boutiqueActive?.id} onRefresh={chargerDonnees} onImprimer={h => imprimerFacture(h, boutique)} onWhatsApp={h => envoyerRecuWhatsApp(h, boutique)} onRetour={effectuerRetour} voirBenefice={peutVoirBenefice} peutRetourner={perms.vente_modifier || estPatron} />}
-        {onglet === "stock" && <Stock produits={produits} boutiqueId={boutiqueActive?.id} onRefresh={chargerDonnees} fournisseurs={fournisseurs} onTransfer={!vueGlobale && boutiques.length > 1 ? () => setOnglet("transferts") : null} voirPrixAchat={perms.prix_achat_voir} peutModifier={perms.stock_modifier || estPatron} />}
+        {onglet === "historique" && <Historique historique={historique} produits={produits} boutiqueId={boutiqueActive?.id} onRefresh={chargerDonnees} onImprimer={h => imprimerFacture(h, boutique)} onWhatsApp={h => envoyerRecuWhatsApp(h, boutique)} onRetour={effectuerRetour} voirBenefice={peutVoirBenefice} peutRetourner={perms.vente_modifier || estPatron} peutModifier={perms.vente_modifier || estPatron} onSupprimer={supprimerMouvement} />}
+        {onglet === "stock" && <Stock produits={produits} boutiqueId={boutiqueActive?.id} onRefresh={chargerDonnees} fournisseurs={fournisseurs} onTransfer={!vueGlobale && boutiques.length > 1 ? () => setOnglet("transferts") : null} voirPrixAchat={perms.prix_achat_voir} peutModifier={perms.stock_modifier || estPatron} onAudit={loggerModif} />}
         {onglet === "fournisseurs" && estPatron && (
           vueGlobale ? (
             <div style={{ padding: "0 12px" }}>

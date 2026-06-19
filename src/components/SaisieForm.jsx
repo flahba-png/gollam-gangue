@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { C, fmt, MODES_PAIEMENT } from "../theme";
 import { t } from "../i18n";
 import Scanner from "./Scanner";
+import ProduitSelect from "./ProduitSelect";
 
 // Formulaire de saisie : panier multi-articles pour vente/crédit, simple pour stock/dépense
 export default function SaisieForm({ produits, onSubmit, chargement, estEntrepot = false, fournisseurs = [] }) {
@@ -153,15 +154,22 @@ export default function SaisieForm({ produits, onSubmit, chargement, estEntrepot
           <div style={{ marginBottom: 10 }}>
             <label style={labelStyle}>PRODUIT (existant ou nouveau)</label>
             <div style={{ display: "flex", gap: 6 }}>
-              <select value={produitId} onChange={e => { setProduitId(e.target.value); setNouveauNom(""); }} style={{ ...inputStyle, flex: 1 }}>
-                <option value="">➕ Nouveau produit...</option>
-                {produits.map(p => <option key={p.id} value={p.id}>{p.nom} (stock: {p.stock || 0})</option>)}
-              </select>
+              <div style={{ flex: 1 }}>
+                <ProduitSelect
+                  produits={produits} value={produitId} autoriserNouveau
+                  placeholder="Rechercher ou créer un produit..."
+                  onSelect={p => { setProduitId(p ? String(p.id) : ""); setNouveauNom(""); }}
+                  onNouveau={nom => { setProduitId(""); setNouveauNom(nom); }}
+                />
+              </div>
               <button type="button" onClick={() => setScanOuvert(true)} title="Scanner" style={scanBtn}>📷</button>
             </div>
+            {!produitId && nouveauNom && (
+              <div style={{ fontSize: 11, color: C.green, marginTop: 4 }}>➕ Nouveau produit : « {nouveauNom} »</div>
+            )}
             {scanMsg && <div style={{ fontSize: 11, marginTop: 4, color: scanMsg.startsWith("✅") ? C.green : C.red }}>{scanMsg}</div>}
           </div>
-          {!produitId && (
+          {!produitId && nouveauNom && (
             <div style={{ marginBottom: 10 }}>
               <input value={nouveauNom} onChange={e => setNouveauNom(e.target.value)} placeholder="Nom du nouveau produit..." style={inputStyle} />
             </div>
@@ -208,10 +216,13 @@ export default function SaisieForm({ produits, onSubmit, chargement, estEntrepot
           <div style={{ marginBottom: 10 }}>
             <label style={labelStyle}>AJOUTER UN ARTICLE</label>
             <div style={{ display: "flex", gap: 6 }}>
-              <select value={produitId} onChange={e => { const v = e.target.value; setProduitId(v); const p = produits.find(x => String(x.id) === v); if (p) setPrixUnit(String(p.prix_vente || "")); }} style={{ ...inputStyle, flex: 1 }}>
-                <option value="">— Choisir un produit —</option>
-                {produits.map(p => <option key={p.id} value={p.id}>{p.nom} (stock: {p.stock || 0})</option>)}
-              </select>
+              <div style={{ flex: 1 }}>
+                <ProduitSelect
+                  produits={produits} value={produitId}
+                  placeholder="Rechercher un produit..."
+                  onSelect={p => { setProduitId(p ? String(p.id) : ""); if (p) setPrixUnit(String(p.prix_vente || "")); }}
+                />
+              </div>
               <button type="button" onClick={() => setScanOuvert(true)} title="Scanner" style={scanBtn}>📷</button>
             </div>
             {scanMsg && <div style={{ fontSize: 11, marginTop: 4, color: scanMsg.startsWith("✅") ? C.green : scanMsg.startsWith("⚠️") ? C.yellow : C.red }}>{scanMsg}</div>}

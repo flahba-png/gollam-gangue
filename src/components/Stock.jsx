@@ -4,7 +4,7 @@ import { t } from "../i18n";
 import { supabase } from "../supabase";
 import Scanner from "./Scanner";
 
-export default function Stock({ produits, boutiqueId, onRefresh, fournisseurs = [], onTransfer, voirPrixAchat = true, peutModifier = true }) {
+export default function Stock({ produits, boutiqueId, onRefresh, fournisseurs = [], onTransfer, voirPrixAchat = true, peutModifier = true, onAudit }) {
   const [recherche, setRecherche] = useState("");
   const [editId, setEditId] = useState(null);
   const [editData, setEditData] = useState({});
@@ -27,7 +27,8 @@ export default function Stock({ produits, boutiqueId, onRefresh, fournisseurs = 
 
   const saveEdit = async () => {
     setSauvegarde(true);
-    await supabase.from("produits").update({
+    const ancien = produits.find(p => p.id === editId) || null;
+    const nouveau = {
       nom: editData.nom,
       prix_achat: parseInt(editData.prixAchat) || 0,
       prix_vente: parseInt(editData.prixVente) || 0,
@@ -39,7 +40,9 @@ export default function Stock({ produits, boutiqueId, onRefresh, fournisseurs = 
       compatibilite: editData.compat || null,
       frais_unitaire: parseInt(editData.frais) || 0,
       unites_par_carton: Math.max(1, parseInt(editData.carton) || 1),
-    }).eq("id", editId);
+    };
+    await supabase.from("produits").update(nouveau).eq("id", editId);
+    if (onAudit) await onAudit({ table: "produits", cibleId: editId, action: "modification", ancien, nouveau });
     setEditId(null);
     setSauvegarde(false);
     onRefresh();
@@ -47,7 +50,9 @@ export default function Stock({ produits, boutiqueId, onRefresh, fournisseurs = 
 
   const supprimerProduit = async (id) => {
     if (!confirm("Supprimer ce produit du catalogue ?")) return;
+    const ancien = produits.find(p => p.id === id) || null;
     await supabase.from("produits").delete().eq("id", id);
+    if (onAudit) await onAudit({ table: "produits", cibleId: id, action: "suppression", ancien });
     onRefresh();
   };
 

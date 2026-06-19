@@ -1,5 +1,5 @@
-import React from "react";
-import { C, fmt, MODES_PAIEMENT } from "../theme";
+import React, { useState, useMemo } from "react";
+import { C, fmt, MODES_PAIEMENT, todayISO } from "../theme";
 import { t } from "../i18n";
 
 const StatCard = ({ label, value, color, sub }) => (
@@ -37,22 +37,45 @@ const BarChart = ({ data, label }) => {
 export default function Dashboard({ kpi, historique, credits, produits, estPatron = true, onImprimer, onWhatsApp }) {
   const alertesStock = produits.filter(p => (p.stock || 0) <= 2);
 
-  const chartData = (() => {
+  // Jour consulté (défaut = aujourd'hui). Le Patron peut remonter dans le temps.
+  const [dateSel, setDateSel] = useState(todayISO());
+  const estAujourdhui = dateSel === todayISO();
+
+  // Mouvements du jour sélectionné uniquement
+  const histoJour = useMemo(
+    () => historique.filter(h => h.date_iso === dateSel),
+    [historique, dateSel]
+  );
+
+  // KPI du jour (CA / dépenses / bénéfice). Les créances restent cumulées (kpi.dettes).
+  const kpiJour = useMemo(() => {
+    let ca = 0, dep = 0, marge = 0;
+    histoJour.forEach(h => {
+      if (h.type === "vente") { ca += h.montant || 0; marge += h.benefice_etabli || 0; }
+      else if (h.type === "retour") { ca -= h.montant || 0; marge += h.benefice_etabli || 0; }
+      else if (h.type === "depense") dep += h.montant || 0;
+    });
+    return { ca, depenses: dep, benefice: marge - dep };
+  }, [histoJour]);
+
+  // Graphique : 7 jours se terminant au jour sélectionné
+  const chartData = useMemo(() => {
     const jours = [];
+    const base = new Date(dateSel + "T12:00:00");
     for (let i = 6; i >= 0; i--) {
-      const d = new Date(); d.setDate(d.getDate() - i);
+      const d = new Date(base); d.setDate(d.getDate() - i);
       const iso = d.toISOString().split("T")[0];
       const label = d.toLocaleDateString("fr-FR", { weekday: "short" }).slice(0, 2);
       const ventes = historique.filter(h => h.date_iso === iso && h.type === "vente").reduce((s, h) => s + (h.montant || 0), 0);
-      jours.push({ label, value: ventes, color: C.green });
+      jours.push({ label, value: ventes, color: iso === dateSel ? C.green : C.green + "99" });
     }
     return jours;
-  })();
+  }, [historique, dateSel]);
 
-  // Totaux encaissés par mode de paiement (ventes uniquement)
+  // Totaux encaissés par mode de paiement (ventes/retours du jour sélectionné)
   const totauxParMode = MODES_PAIEMENT.map(m => ({
     ...m,
-    total: historique
+    total: histoJour
       .filter(h => (h.type === "vente" || h.type === "retour") && (h.mode_paiement || "especes") === m.id)
       .reduce((s, h) => s + (h.type === "retour" ? -(h.montant || 0) : (h.montant || 0)), 0),
   }));
@@ -62,6 +85,23 @@ export default function Dashboard({ kpi, historique, credits, produits, estPatro
 
   return (
     <div style={{ padding: "0 12px 12px" }}>
+      {/* SÉLECTEUR DE DATE (discret) */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 12 }}>
+        <div style={{ fontSize: 12, color: C.muted, fontWeight: "bold" }}>
+          📅 {estAujourdhui ? "Aujourd'hui" : new Date(dateSel + "T12:00:00").toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })}
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          {!estAujourdhui && (
+            <button onClick={() => setDateSel(todayISO())}
+              style={{ background: C.green + "18", color: C.green, border: `1px solid ${C.green}44`, borderRadius: 6, padding: "5px 9px", fontSize: 11, fontWeight: "bold", cursor: "pointer" }}>
+              Aujourd'hui
+            </button>
+          )}
+          <input type="date" value={dateSel} max={todayISO()} onChange={e => setDateSel(e.target.value || todayISO())}
+            style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 6, color: C.text, fontSize: 12, padding: "5px 8px" }} />
+        </div>
+      </div>
+
       {boutiqueVide && (
         <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.green}55`, padding: 18, marginBottom: 12 }}>
           <div style={{ fontSize: 15, fontWeight: "bold", color: C.text, marginBottom: 10 }}>👋 Bienvenue ! Démarre en 2 étapes</div>
@@ -77,10 +117,10 @@ export default function Dashboard({ kpi, historique, credits, produits, estPatro
       )}
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
-        <StatCard label={t("chiffre_affaires")} value={kpi.ca} color={C.green} />
-        {estPatron && <StatCard label={t("depenses")} value={kpi.depenses} color={C.red} />}
-        {estPatron && <StatCard label={t("benefice_net")} value={kpi.benefice} color={kpi.benefice >= 0 ? C.green : C.red} />}
-        <StatCard label={t("creances")} value={kpi.dettes} color={C.yellow} sub={`${credits.length} client(s)`} />
+        <StatCard label={t("chiffre_affaires")} value={kpiJour.ca} color={C.green} sub={estAujourdhui ? "du jour" : "ce jour-là"} />
+        {estPatron && <StatCard label={t("depenses")} value={kpiJour.depenses} color={C.red} sub={estAujourdhui ? "du jour" : "ce jour-là"} />}
+        {estPatron && <StatCard label={t("benefice_net")} value={kpiJour.benefice} color={kpiJour.benefice >= 0 ? C.green : C.red} sub={estAujourdhui ? "du jour" : "ce jour-là"} />}
+        <StatCard label={t("creances")} value={kpi.dettes} color={C.yellow} sub={`cumul · ${credits.length} client(s)`} />
       </div>
 
       {/* RÉPARTITION CAISSE PAR MODE DE PAIEMENT */}
@@ -130,7 +170,7 @@ export default function Dashboard({ kpi, historique, credits, produits, estPatro
       <div style={{ background: C.surface, borderRadius: 8, border: `1px solid ${C.border}`, padding: 14 }}>
         <div style={{ color: C.muted, fontWeight: "bold", fontSize: 12, marginBottom: 10 }}>📝 {t("dernieres_operations").toUpperCase()}</div>
         <div style={{ maxHeight: 220, overflowY: "auto" }}>
-          {historique.slice(0, 10).map(h => (
+          {histoJour.slice(0, 30).map(h => (
             <div key={h.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: `1px solid ${C.border}`, fontSize: 12 }}>
               <span>
                 <span style={{ color: C.muted, marginRight: 6 }}>{h.heure}</span>
@@ -159,7 +199,7 @@ export default function Dashboard({ kpi, historique, credits, produits, estPatro
               </div>
             </div>
           ))}
-          {historique.length === 0 && <div style={{ color: C.muted, fontSize: 12, fontStyle: "italic" }}>{t("aucune_operation")}</div>}
+          {histoJour.length === 0 && <div style={{ color: C.muted, fontSize: 12, fontStyle: "italic" }}>{t("aucune_operation")}</div>}
         </div>
       </div>
     </div>
