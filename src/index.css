@@ -1,0 +1,108 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* Variables de couleur — thème sombre par défaut */
+:root, [data-theme="sombre"] {
+  --accent: #1FD08A;
+  --bg: #0C1016;
+  --surface: #161C24;
+  --surface2: #1F2730;
+  --border: #2A3441;
+  --text: #EAF0F6;
+  --muted: #8A97A6;
+  color-scheme: dark;
+}
+
+/* Thème clair */
+[data-theme="clair"] {
+  --accent: #0E9E6E;
+  --bg: #F2F5F8;
+  --surface: #FFFFFF;
+  --surface2: #EDF1F5;
+  --border: #D7DEE6;
+  --text: #16202B;
+  --muted: #5E6B78;
+  color-scheme: light;
+}
+
+html, body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* Dégradé de fond pour un rendu plus profond et premium */
+body {
+  background:
+    radial-gradient(1000px 500px at 100% -5%, rgba(167, 139, 250, 0.07), transparent 55%),
+    radial-gradient(1200px 600px at 0% -10%, rgba(31, 208, 138, 0.08), transparent 60%),
+    var(--bg);
+  min-height: 100vh;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+/* ===== Animations ===== */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes popIn {
+  0%   { opacity: 0; transform: scale(0.96); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+/* Contenu d'onglet : ré-anime à chaque changement (via key={onglet}) */
+.tab-content {
+  animation: fadeInUp 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ===== Micro-interactions boutons ===== */
+button {
+  transition: transform 0.08s ease, filter 0.15s ease, background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+button:not(:disabled):active {
+  transform: scale(0.97);
+}
+button:not(:disabled):hover {
+  filter: brightness(1.08);
+}
+
+/* ===== Champs : focus soigné ===== */
+input, select, textarea {
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+input:focus, select:focus, textarea:focus {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 3px rgba(31, 208, 138, 0.18);
+}
+
+/* ===== Cartes : transition douce ===== */
+[style*="border-radius"] {
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* ===== Scrollbar fine ===== */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+/* Respecte les préférences d'accessibilité */
+@media (prefers-reduced-motion: reduce) {
+  *, .tab-content { animation: none !important; transition: none !important; }
+}

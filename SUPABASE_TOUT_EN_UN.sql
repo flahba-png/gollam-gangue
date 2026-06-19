@@ -1,0 +1,408 @@
+-- ============================================================
+-- GANGUÉ PLATFORM — SCHÉMA COMPLET (tout-en-un)
+-- Colle TOUT ce fichier dans le SQL Editor de Supabase → Run
+-- Idempotent : peut être relancé sans casser une base existante.
+-- ============================================================
+
+-- ========== BOUTIQUES (+ entrepôts) ==========
+create table if not exists boutiques (
+  id uuid default gen_random_uuid() primary key,
+  proprietaire_id uuid references auth.users(id) on delete cascade,
+  nom text not null,
+  ville text,
+  email text,
+  type text default 'boutique',
+  parent_id uuid references boutiques(id) on delete cascade,
+  taux_tva numeric default 0,
+  created_at timestamptz default now()
+);
+-- Mise à niveau d'une ancienne structure éventuelle
+alter table boutiques add column if not exists proprietaire_id uuid references auth.users(id) on delete cascade;
+alter table boutiques add column if not exists type text default 'boutique';
+alter table boutiques add column if not exists parent_id uuid references boutiques(id) on delete cascade;
+alter table boutiques add column if not exists taux_tva numeric default 0;
+alter table boutiques drop constraint if exists boutiques_id_fkey;
+alter table boutiques alter column id set default gen_random_uuid();
+update boutiques set proprietaire_id = id where proprietaire_id is null;
+
+-- ========== MEMBRES (employés) ==========
+create table if not exists membres (
+  id bigint generated always as identity primary key,
+  boutique_id uuid references boutiques(id) on delete cascade not null,
+  proprietaire_id uuid references auth.users(id) on delete cascade not null,
+  user_id uuid references auth.users(id) on delete set null,
+  email text not null,
+  nom text,
+  role text default 'vendeur' check (role in ('gerant', 'vendeur')),
+  telephone text,
+  created_at timestamptz default now()
+);
+alter table membres add column if not exists telephone text;
+
+-- ========== PRODUITS ==========
+create table if not exists produits (
+  id bigint generated always as identity primary key,
+  boutique_id uuid references boutiques(id) on delete cascade not null,
+  nom text not null,
+  prix_achat integer default 0,
+  prix_vente integer default 0,
+  stock integer default 0,
+  created_at timestamptz default now()
+);
+alter table produits add column if not exists seuil_alerte integer default 2;
+alter table produits add column if not exists code_barre text;
+alter table produits add column if not exists reference_oem text;
+alter table produits add column if not exists compatibilite text;
+alter table produits add column if not exists frais_unitaire integer default 0;
+alter table produits add column if not exists unites_par_carton integer default 1;
+
+-- ========== HISTORIQUE ==========
+create table if not exists historique (
+  id bigint generated always as identity primary key,
+  boutique_id uuid references boutiques(id) on delete cascade not null,
+  heure text,
+  date_iso text,
+  texte text,
+  type text,
+  montant integer default 0,
+  benefice_etabli integer default 0,
+  details_facture jsonb,
+  created_at timestamptz default now()
+);
+alter table historique add column if not exists mode_paiement text default 'especes';
+alter table historique add column if not exists vendeur_nom text;
+alter table historique drop constraint if exists historique_type_check;
+alter table historique add constraint historique_type_check
+  check (type in ('vente', 'depense', 'ajout', 'transfert', 'retour', 'inventaire'));
+
+-- ========== CRÉDITS ==========
+create table if not exists credits (
+  id bigint generated always as identity primary key,
+  boutique_id uuid references boutiques(id) on delete cascade not null,
+  client text not null,
+  article text,
+  total integer default 0,
+  avance integer default 0,
+  reste_a_payer integer default 0,
+  date text,
+  created_at timestamptz default now()
+);
+alter table credits add column if not exists client_phone text;
+alter table credits add column if not exists mode_paiement text default 'especes';
+
+-- ========== FOURNISSEURS + lien produit ==========
+create table if not exists fournisseurs (
+  id uuid default gen_random_uuid() primary key,
+  boutique_id uuid references boutiques(id) on delete cascade not null,
+  nom text not null,
+  telephone text,
+  created_at timestamptz default now()
+);
+alter table produits add column if not exists fournisseur_id uuid references fournisseurs(id) on delete set null;
+
+-- ========== COMMANDES (réassort) ==========
+create table if not exists commandes (
+  id bigint generated always as identity primary key,
+  boutique_id uuid references boutiques(id) on delete cascade not null,
+  fournisseur_id uuid references fournisseurs(id) on delete set null,
+  fournisseur_nom text,
+  lignes jsonb not null,
+  total integer default 0,
+  statut text default 'en_cours' check (statut in ('en_cours', 'recue', 'annulee')),
+  date text,
+  created_at timestamptz default now()
+);
+
+-- ========== TRANSFERTS de stock ==========
+create table if not exists transferts (
+  id bigint generated always as identity primary key,
+  proprietaire_id uuid references auth.users(id) on delete cascade not null,
+  source_id uuid references boutiques(id) on delete cascade not null,
+  dest_id uuid references boutiques(id) on delete cascade not null,
+  produit_nom text not null,
+  prix_achat integer default 0,
+  prix_vente integer default 0,
+  quantite integer not null,
+  statut text default 'en_attente' check (statut in ('en_attente', 'recu', 'annule')),
+  date_envoi text,
+  created_at timestamptz default now()
+);
+
+-- ========== CLÔTURES de caisse ==========
+create table if not exists clotures (
+  id bigint generated always as identity primary key,
+  boutique_id uuid references boutiques(id) on delete cascade not null,
+  vendeur_nom text,
+  date text,
+  fond_caisse integer default 0,
+  ventes_especes integer default 0,
+  attendu_especes integer default 0,
+  compte_especes integer default 0,
+  ecart integer default 0,
+  totaux_modes jsonb,
+  created_at timestamptz default now()
+);
+
+-- ========== PLAFONDS de crédit client ==========
+create table if not exists plafonds (
+  id bigint generated always as identity primary key,
+  boutique_id uuid references boutiques(id) on delete cascade not null,
+  client text not null,
+  plafond integer default 0,
+  created_at timestamptz default now(),
+  unique (boutique_id, client)
+);
+
+-- ========== MESSAGES (chat d'équipe) ==========
+create table if not exists messages (
+  id bigint generated always as identity primary key,
+  boutique_id uuid references boutiques(id) on delete cascade not null,
+  expediteur_id uuid,
+  expediteur_nom text,
+  texte text not null,
+  created_at timestamptz default now()
+);
+
+-- ========== ABONNEMENTS (monétisation) ==========
+create table if not exists abonnements (
+  proprietaire_id uuid references auth.users(id) on delete cascade primary key,
+  email text,
+  nom text,
+  plan text default 'essai',
+  date_fin timestamptz,
+  montant integer default 18000,
+  created_at timestamptz default now()
+);
+
+-- ========== DOCUMENTS (devis, factures, bons de livraison) ==========
+create table if not exists documents (
+  id bigint generated always as identity primary key,
+  boutique_id uuid references boutiques(id) on delete cascade not null,
+  type text not null check (type in ('devis', 'facture', 'bon_livraison')),
+  numero text,
+  client text,
+  client_phone text,
+  lignes jsonb not null,
+  remise integer default 0,
+  taux_tva numeric default 0,
+  total_ht integer default 0,
+  total_ttc integer default 0,
+  statut text default 'en_attente',
+  date text,
+  validite text,
+  notes text,
+  created_at timestamptz default now()
+);
+
+-- ========== INDEX ==========
+create index if not exists idx_produits_code_barre on produits (boutique_id, code_barre);
+create index if not exists idx_produits_oem on produits (boutique_id, reference_oem);
+
+-- ============================================================
+-- SÉCURITÉ (Row Level Security)
+-- ============================================================
+alter table boutiques enable row level security;
+alter table membres enable row level security;
+alter table produits enable row level security;
+alter table historique enable row level security;
+alter table credits enable row level security;
+alter table fournisseurs enable row level security;
+alter table commandes enable row level security;
+alter table transferts enable row level security;
+alter table clotures enable row level security;
+alter table plafonds enable row level security;
+alter table abonnements enable row level security;
+alter table documents enable row level security;
+alter table messages enable row level security;
+
+-- Helper : accès propriétaire OU employé d'une boutique
+--   boutique_id in (mes boutiques possédées) OR (mes boutiques en tant qu'employé)
+
+-- BOUTIQUES
+drop policy if exists "boutique_own" on boutiques;
+create policy "boutique_own" on boutiques for all
+  using (proprietaire_id = auth.uid())
+  with check (proprietaire_id = auth.uid());
+drop policy if exists "boutiques_membre_select" on boutiques;
+create policy "boutiques_membre_select" on boutiques for select
+  using (id in (select boutique_id from membres where user_id = auth.uid()));
+
+-- MEMBRES
+drop policy if exists "membres_owner" on membres;
+create policy "membres_owner" on membres for all
+  using (proprietaire_id = auth.uid())
+  with check (proprietaire_id = auth.uid());
+drop policy if exists "membres_self" on membres;
+create policy "membres_self" on membres for select
+  using (lower(email) = lower(auth.jwt() ->> 'email'));
+drop policy if exists "membres_claim" on membres;
+create policy "membres_claim" on membres for update
+  using (lower(email) = lower(auth.jwt() ->> 'email'))
+  with check (lower(email) = lower(auth.jwt() ->> 'email'));
+
+-- PRODUITS
+drop policy if exists "produits_own" on produits;
+create policy "produits_own" on produits for all
+  using (
+    boutique_id in (select id from boutiques where proprietaire_id = auth.uid())
+    or boutique_id in (select boutique_id from membres where user_id = auth.uid())
+  )
+  with check (
+    boutique_id in (select id from boutiques where proprietaire_id = auth.uid())
+    or boutique_id in (select boutique_id from membres where user_id = auth.uid())
+  );
+
+-- HISTORIQUE
+drop policy if exists "historique_own" on historique;
+create policy "historique_own" on historique for all
+  using (
+    boutique_id in (select id from boutiques where proprietaire_id = auth.uid())
+    or boutique_id in (select boutique_id from membres where user_id = auth.uid())
+  )
+  with check (
+    boutique_id in (select id from boutiques where proprietaire_id = auth.uid())
+    or boutique_id in (select boutique_id from membres where user_id = auth.uid())
+  );
+
+-- CRÉDITS
+drop policy if exists "credits_own" on credits;
+create policy "credits_own" on credits for all
+  using (
+    boutique_id in (select id from boutiques where proprietaire_id = auth.uid())
+    or boutique_id in (select boutique_id from membres where user_id = auth.uid())
+  )
+  with check (
+    boutique_id in (select id from boutiques where proprietaire_id = auth.uid())
+    or boutique_id in (select boutique_id from membres where user_id = auth.uid())
+  );
+
+-- FOURNISSEURS
+drop policy if exists "fournisseurs_own" on fournisseurs;
+create policy "fournisseurs_own" on fournisseurs for all
+  using (
+    boutique_id in (select id from boutiques where proprietaire_id = auth.uid())
+    or boutique_id in (select boutique_id from membres where user_id = auth.uid())
+  )
+  with check (
+    boutique_id in (select id from boutiques where proprietaire_id = auth.uid())
+    or boutique_id in (select boutique_id from membres where user_id = auth.uid())
+  );
+
+-- COMMANDES
+drop policy if exists "commandes_own" on commandes;
+create policy "commandes_own" on commandes for all
+  using (
+    boutique_id in (select id from boutiques where proprietaire_id = auth.uid())
+    or boutique_id in (select boutique_id from membres where user_id = auth.uid())
+  )
+  with check (
+    boutique_id in (select id from boutiques where proprietaire_id = auth.uid())
+    or boutique_id in (select boutique_id from membres where user_id = auth.uid())
+  );
+
+-- TRANSFERTS
+drop policy if exists "transferts_own" on transferts;
+create policy "transferts_own" on transferts for all
+  using (proprietaire_id = auth.uid())
+  with check (proprietaire_id = auth.uid());
+
+-- CLÔTURES
+drop policy if exists "clotures_own" on clotures;
+create policy "clotures_own" on clotures for all
+  using (
+    boutique_id in (select id from boutiques where proprietaire_id = auth.uid())
+    or boutique_id in (select boutique_id from membres where user_id = auth.uid())
+  )
+  with check (
+    boutique_id in (select id from boutiques where proprietaire_id = auth.uid())
+    or boutique_id in (select boutique_id from membres where user_id = auth.uid())
+  );
+
+-- PLAFONDS
+drop policy if exists "plafonds_own" on plafonds;
+create policy "plafonds_own" on plafonds for all
+  using (
+    boutique_id in (select id from boutiques where proprietaire_id = auth.uid())
+    or boutique_id in (select boutique_id from membres where user_id = auth.uid())
+  )
+  with check (
+    boutique_id in (select id from boutiques where proprietaire_id = auth.uid())
+    or boutique_id in (select boutique_id from membres where user_id = auth.uid())
+  );
+
+-- ABONNEMENTS
+drop policy if exists "abonnement_self" on abonnements;
+create policy "abonnement_self" on abonnements for all
+  using (proprietaire_id = auth.uid())
+  with check (proprietaire_id = auth.uid());
+drop policy if exists "abonnement_admin" on abonnements;
+create policy "abonnement_admin" on abonnements for all
+  using (lower(auth.jwt() ->> 'email') = 'flahba@icloud.com')
+  with check (lower(auth.jwt() ->> 'email') = 'flahba@icloud.com');
+
+-- DOCUMENTS
+drop policy if exists "documents_own" on documents;
+create policy "documents_own" on documents for all
+  using (
+    boutique_id in (select id from boutiques where proprietaire_id = auth.uid())
+    or boutique_id in (select boutique_id from membres where user_id = auth.uid())
+  )
+  with check (
+    boutique_id in (select id from boutiques where proprietaire_id = auth.uid())
+    or boutique_id in (select boutique_id from membres where user_id = auth.uid())
+  );
+
+-- MESSAGES
+drop policy if exists "messages_own" on messages;
+create policy "messages_own" on messages for all
+  using (
+    boutique_id in (select id from boutiques where proprietaire_id = auth.uid())
+    or boutique_id in (select boutique_id from membres where user_id = auth.uid())
+  )
+  with check (
+    boutique_id in (select id from boutiques where proprietaire_id = auth.uid())
+    or boutique_id in (select boutique_id from membres where user_id = auth.uid())
+  );
+do $$ begin
+  alter publication supabase_realtime add table messages;
+exception when others then null; end $$;
+
+-- ========== ÉVOLUTIONS : permissions, audit, DM, relance ==========
+alter table membres add column if not exists permissions jsonb;
+alter table messages add column if not exists destinataire_id uuid;
+alter table abonnements add column if not exists telephone text;
+
+create table if not exists journal_audit (
+  id bigint generated always as identity primary key,
+  boutique_id uuid references boutiques(id) on delete cascade not null,
+  proprietaire_id uuid references auth.users(id) on delete cascade,
+  user_nom text,
+  action text,
+  details jsonb,
+  created_at timestamptz default now()
+);
+alter table journal_audit enable row level security;
+drop policy if exists "audit_insert" on journal_audit;
+create policy "audit_insert" on journal_audit for insert
+  with check (
+    boutique_id in (select id from boutiques where proprietaire_id = auth.uid())
+    or boutique_id in (select boutique_id from membres where user_id = auth.uid())
+  );
+drop policy if exists "audit_select_owner" on journal_audit;
+create policy "audit_select_owner" on journal_audit for select
+  using (boutique_id in (select id from boutiques where proprietaire_id = auth.uid()));
+
+-- Messages : DM visibles seulement par les 2 participants
+drop policy if exists "messages_own" on messages;
+create policy "messages_own" on messages for all
+  using (
+    (boutique_id in (select id from boutiques where proprietaire_id = auth.uid())
+     or boutique_id in (select boutique_id from membres where user_id = auth.uid()))
+    and (destinataire_id is null or expediteur_id = auth.uid() or destinataire_id = auth.uid())
+  )
+  with check (
+    boutique_id in (select id from boutiques where proprietaire_id = auth.uid())
+    or boutique_id in (select boutique_id from membres where user_id = auth.uid())
+  );
+
+-- ✅ Terminé. Toutes les tables, colonnes et règles de sécurité sont en place.

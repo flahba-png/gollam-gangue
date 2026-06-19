@@ -1,0 +1,745 @@
+import React, { useState, useEffect, useCallback } from "react";
+import { supabase } from "./supabase";
+import { C, fmt, today, todayISO, heure, envoyerWhatsApp, appliquerTheme, themeActuel } from "./theme";
+import { t, setLangue, langueActuelle } from "./i18n";
+import { permsDe } from "./permissions";
+import Auth from "./components/Auth";
+import Dashboard from "./components/Dashboard";
+import Stock from "./components/Stock";
+import Credits from "./components/Credits";
+import Historique from "./components/Historique";
+import Stats from "./components/Stats";
+import SaisieForm from "./components/SaisieForm";
+import Clients from "./components/Clients";
+import Transferts from "./components/Transferts";
+import Equipe from "./components/Equipe";
+import Fournisseurs from "./components/Fournisseurs";
+import Cloture from "./components/Cloture";
+import Inventaire from "./components/Inventaire";
+import Paywall from "./components/Paywall";
+import Admin from "./components/Admin";
+import Compte from "./components/Compte";
+import Onboarding, { onboardingVu } from "./components/Onboarding";
+import Documents from "./components/Documents";
+import Chat from "./components/Chat";
+import { bipVente, bipErreur } from "./feedback";
+import { ADMIN_EMAIL, DUREE_ESSAI_JOURS, ADMIN_WHATSAPP, PRIX_ABONNEMENT } from "./config";
+import { imprimerFacture, envoyerRecuWhatsApp } from "./receipt";
+import { lireOutbox, ajouterOutbox, retirerOutbox, tailleOutbox } from "./outbox";
+
+export default function App() {
+  const [session, setSession] = useState(null);
+  const [boutiques, setBoutiques] = useState([]);
+  const [mesMembres, setMesMembres] = useState([]); // boutiques où je suis employé
+  const [boutiqueActive, setBoutiqueActive] = useState(null);
+  const [vueGlobale, setVueGlobale] = useState(false);
+  const [monRole, setMonRole] = useState("proprietaire"); // proprietaire | gerant | vendeur
+  const [monNom, setMonNom] = useState("Patron");
+  const [estProprio, setEstProprio] = useState(false);   // possède au moins 1 boutique
+  const [abonnement, setAbonnement] = useState(null);
+  const [produits, setProduits] = useState([]);
+  const [historique, setHistorique] = useState([]);
+  const [credits, setCredits] = useState([]);
+  const [transferts, setTransferts] = useState([]);
+  const [fournisseurs, setFournisseurs] = useState([]);
+  const [onglet, setOnglet] = useState("dashboard");
+  const [menuPlus, setMenuPlus] = useState(false);
+  const [statut, setStatut] = useState("");
+  const [chargement, setChargement] = useState(false);
+  const [enLigne, setEnLigne] = useState(navigator.onLine);
+  const [enAttente, setEnAttente] = useState(tailleOutbox());
+  const [recovery, setRecovery] = useState(false); // l'utilisateur a cliqué un lien de réinitialisation
+  const [nouveauMdp, setNouveauMdp] = useState("");
+  const [voirMdp, setVoirMdp] = useState(false);
+  const [compteOuvert, setCompteOuvert] = useState(false);
+  const [montrerOnboarding, setMontrerOnboarding] = useState(!onboardingVu());
+  const [theme, setTheme] = useState(themeActuel());
+  const [langue, setLangueState] = useState(langueActuelle());
+
+  const changerTheme = (nom) => { appliquerTheme(nom); setTheme(nom); };
+  const changerLangue = (l) => { setLangue(l); setLangueState(l); };
+
+  // Sauvegarde : exporte toutes les données du propriétaire en JSON
+  const exporterDonnees = async () => {
+    const ids = boutiques.map(b => b.id);
+    if (ids.length === 0) { setStatut("⚠️ Aucune donnée à exporter."); return; }
+    setStatut("⏳ Préparation de la sauvegarde...");
+    const [{ data: prods }, { data: histo }, { data: creds }, { data: docs }] = await Promise.all([
+      supabase.from("produits").select("*").in("boutique_id", ids),
+      supabase.from("historique").select("*").in("boutique_id", ids),
+      supabase.from("credits").select("*").in("boutique_id", ids),
+      supabase.from("documents").select("*").in("boutique_id", ids),
+    ]);
+    const sauvegarde = {
+      exporte_le: new Date().toISOString(),
+      compte: session.user.email,
+      boutiques, produits: prods || [], historique: histo || [], credits: creds || [], documents: docs || [],
+    };
+    const blob = new Blob([JSON.stringify(sauvegarde, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `gangue_sauvegarde_${todayISO()}.json`; a.click();
+    URL.revokeObjectURL(url);
+    setStatut("✅ Sauvegarde téléchargée.");
+  };
+
+  // Demande d'abonnement par WhatsApp (depuis le bandeau de rappel)
+  const demanderAbonnement = () => {
+    envoyerWhatsApp(ADMIN_WHATSAPP,
+      `Bonjour 👋\nJe veux m'abonner à Gangué Platform (${fmt(PRIX_ABONNEMENT)} F/mois).\nEmail : ${session?.user?.email || ""}`);
+  };
+  const [kpi, setKpi] = useState({ ca: 0, depenses: 0, benefice: 0, dettes: 0, margeTotal: 0 });
+
+  // Détection de la connexion réseau
+  useEffect(() => {
+    const online = () => setEnLigne(true);
+    const offline = () => setEnLigne(false);
+    window.addEventListener("online", online);
+    window.addEventListener("offline", offline);
+    return () => { window.removeEventListener("online", online); window.removeEventListener("offline", offline); };
+  }, []);
+
+  // Le toast de statut disparaît tout seul
+  useEffect(() => {
+    if (!statut) return;
+    const t = setTimeout(() => setStatut(""), 3800);
+    return () => clearTimeout(t);
+  }, [statut]);
+
+  // Boutique utilisée pour l'affichage (titres, reçus)
+  const boutique = vueGlobale ? { nom: "Toutes les boutiques", ville: `${boutiques.length} boutique(s)` } : boutiqueActive;
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => setSession(session));
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      setSession(session);
+      if (event === "PASSWORD_RECOVERY") setRecovery(true);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const definirNouveauMdp = async () => {
+    if ((nouveauMdp || "").length < 6) { setStatut("⚠️ Mot de passe trop court (min 6)."); return; }
+    const { error } = await supabase.auth.updateUser({ password: nouveauMdp });
+    if (error) { setStatut("❌ " + error.message); return; }
+    setRecovery(false); setNouveauMdp("");
+    setStatut("✅ Mot de passe modifié. Tu es connecté.");
+  };
+
+  // Charger mes boutiques : celles que je possède + celles où je suis employé
+  useEffect(() => {
+    if (!session) return;
+    (async () => {
+      // 1. Réclamer les invitations en attente (lier mon compte par email)
+      await supabase.from("membres").update({ user_id: session.user.id })
+        .is("user_id", null).ilike("email", session.user.email);
+
+      // 2. Mes adhésions (en tant qu'employé)
+      const { data: membres } = await supabase.from("membres").select("*").eq("user_id", session.user.id);
+      setMesMembres(membres || []);
+
+      // 3. Boutiques possédées
+      const { data: possedees } = await supabase.from("boutiques").select("*").eq("proprietaire_id", session.user.id).order("created_at");
+
+      // 4. Boutiques où je suis employé
+      let membreBoutiques = [];
+      const ids = (membres || []).map(m => m.boutique_id);
+      if (ids.length) {
+        const { data } = await supabase.from("boutiques").select("*").in("id", ids);
+        membreBoutiques = data || [];
+      }
+
+      const toutes = [...(possedees || []), ...membreBoutiques.filter(b => !(possedees || []).some(p => p.id === b.id))];
+      setBoutiques(toutes);
+      setBoutiqueActive(prev => prev || toutes[0] || null);
+
+      // Propriétaire = possède au moins une boutique → soumis à l'abonnement
+      const proprio = (possedees || []).length > 0;
+      setEstProprio(proprio);
+      if (proprio) {
+        let { data: abo } = await supabase.from("abonnements").select("*").eq("proprietaire_id", session.user.id).maybeSingle();
+        if (!abo) {
+          const fin = new Date(); fin.setDate(fin.getDate() + DUREE_ESSAI_JOURS);
+          const { data: nouv } = await supabase.from("abonnements")
+            .insert({ proprietaire_id: session.user.id, email: session.user.email, nom: (possedees[0] || {}).nom || "", plan: "essai", date_fin: fin.toISOString() })
+            .select().single();
+          abo = nouv;
+        }
+        setAbonnement(abo);
+      }
+    })();
+  }, [session]);
+
+  // Déterminer mon rôle et mon nom sur la boutique active
+  useEffect(() => {
+    if (!session || !boutiqueActive) { setMonRole("proprietaire"); setMonNom("Patron"); return; }
+    if (boutiqueActive.proprietaire_id === session.user.id) { setMonRole("proprietaire"); setMonNom("Patron"); return; }
+    const m = mesMembres.find(x => x.boutique_id === boutiqueActive.id);
+    setMonRole(m?.role || "vendeur");
+    setMonNom(m?.nom || session.user.email?.split("@")[0] || "Vendeur");
+  }, [session, boutiqueActive, mesMembres]);
+
+  const chargerDonnees = useCallback(async () => {
+    if (!session) return;
+
+    // Vue globale = toutes les boutiques du propriétaire ; sinon la boutique active
+    const ids = vueGlobale ? boutiques.map(b => b.id) : (boutiqueActive ? [boutiqueActive.id] : []);
+    if (ids.length === 0) { setProduits([]); setHistorique([]); setCredits([]); setKpi({ ca: 0, depenses: 0, benefice: 0, dettes: 0, margeTotal: 0 }); return; }
+
+    const [{ data: prods }, { data: histo }, { data: creds }, { data: transf }] = await Promise.all([
+      supabase.from("produits").select("*").in("boutique_id", ids).order("nom"),
+      supabase.from("historique").select("*").in("boutique_id", ids).order("created_at", { ascending: false }),
+      supabase.from("credits").select("*").in("boutique_id", ids),
+      supabase.from("transferts").select("*").eq("proprietaire_id", session.user.id).order("created_at", { ascending: false }),
+    ]);
+
+    setProduits(prods || []);
+    setHistorique(histo || []);
+    setCredits(creds || []);
+    setTransferts(transf || []);
+
+    // Fournisseurs (seulement en boutique unique, pour le réassort)
+    if (!vueGlobale && boutiqueActive) {
+      const { data: fourn } = await supabase.from("fournisseurs").select("*").eq("boutique_id", boutiqueActive.id).order("nom");
+      setFournisseurs(fourn || []);
+    } else {
+      setFournisseurs([]);
+    }
+
+    let ca = 0, dep = 0, marge = 0, dettes = 0;
+    (histo || []).forEach(h => {
+      if (h.type === "vente") { ca += h.montant || 0; marge += h.benefice_etabli || 0; }
+      if (h.type === "retour") { ca -= h.montant || 0; marge += h.benefice_etabli || 0; } // benefice_etabli déjà négatif
+      if (h.type === "depense") dep += h.montant || 0;
+    });
+    (creds || []).forEach(c => dettes += c.reste_a_payer || 0);
+    setKpi({ ca, depenses: dep, benefice: marge - dep, dettes, margeTotal: marge });
+  }, [session, boutiqueActive, vueGlobale, boutiques]);
+
+  useEffect(() => { chargerDonnees(); }, [chargerDonnees]);
+
+  // Au retour de la connexion, on resynchronise les données
+  useEffect(() => { if (enLigne) chargerDonnees(); }, [enLigne, chargerDonnees]);
+
+  // Logique d'enregistrement partagée (formulaire + saisie texte IA)
+  // Retourne true si succès, false si erreur (statut déjà positionné)
+  // Écrivain serveur PUR : lit le stock depuis Supabase, écrit l'opération.
+  // Utilisé à la fois pour l'écriture immédiate (en ligne) et pour rejouer la file.
+  // Retourne { ok, err }.
+  const ecrireOperation = async (donnees, boutiqueId) => {
+    const { action, nom, quantite, prixVente, prixAchat, montantDepense, isCredit, client, avance, modePaiement = "especes", clientPhone = "" } = donnees;
+    const uid = boutiqueId;
+    const log = { boutique_id: uid, heure: heure(), date_iso: todayISO(), texte: "", type: action, montant: 0, benefice_etabli: 0, details_facture: null, mode_paiement: modePaiement, vendeur_nom: monNom };
+
+    if (action === "vente") {
+      // Panier multi-articles : compat avec l'ancien format mono-produit
+      const lignesEntree = donnees.lignes || [{ nom, quantite, prixVente }];
+
+      // 1. Validation : on résout et vérifie TOUT le stock avant d'écrire quoi que ce soit
+      const resolues = [];
+      for (const l of lignesEntree) {
+        const { data: produit } = await supabase.from("produits").select("*").eq("boutique_id", uid).ilike("nom", l.nom).maybeSingle();
+        if (!produit) return { ok: false, err: `"${l.nom}" introuvable dans le stock.` };
+        if ((produit.stock || 0) < l.quantite) return { ok: false, err: `Stock insuffisant pour ${l.nom} (${produit.stock} dispo).` };
+        const pu = l.prixVente || produit.prix_vente || 0;
+        const coutReel = (produit.prix_achat || 0) + (produit.frais_unitaire || 0);
+        resolues.push({ produit, qte: l.quantite, pu, total: pu * l.quantite, gain: (pu - coutReel) * l.quantite, nom: produit.nom });
+      }
+
+      const totalBrut = resolues.reduce((s, r) => s + r.total, 0);
+      const gainBrut = resolues.reduce((s, r) => s + r.gain, 0);
+      const remise = Math.min(donnees.remise || 0, totalBrut); // la remise sort de la marge
+      const totalVente = totalBrut - remise;
+      const gain = gainBrut - remise;
+      const lignesFacture = resolues.map(r => ({ nom: r.nom, qte: r.qte, pu: r.pu, total: r.total }));
+      const resume = resolues.map(r => `${r.qte}x ${r.nom}`).join(", ");
+      const nbArticles = resolues.length;
+      const reste = totalVente - avance;
+
+      // 2. Plafond de crédit : on vérifie AVANT de toucher au stock
+      if (isCredit) {
+        const { data: pl } = await supabase.from("plafonds").select("plafond").eq("boutique_id", uid).ilike("client", client).maybeSingle();
+        const plafond = pl?.plafond || 0;
+        if (plafond > 0) {
+          const { data: dettes } = await supabase.from("credits").select("reste_a_payer").eq("boutique_id", uid).ilike("client", client);
+          const detteActuelle = (dettes || []).reduce((s, c) => s + (c.reste_a_payer || 0), 0);
+          if (detteActuelle + reste > plafond) {
+            return { ok: false, err: `Plafond dépassé pour ${client} : max ${fmt(plafond)} F, déjà ${fmt(detteActuelle)} F dû.` };
+          }
+        }
+      }
+
+      // 3. Écriture : on décrémente chaque produit
+      for (const r of resolues) {
+        await supabase.from("produits").update({ stock: r.produit.stock - r.qte }).eq("id", r.produit.id);
+      }
+
+      if (isCredit) {
+        log.texte = `📉 [CRÉDIT] ${resume} → ${client}`;
+        log.montant = avance;
+        log.benefice_etabli = gain;
+        log.details_facture = { client, clientPhone, article: resume, lignes: lignesFacture, remise, total: totalVente, reste, type: "Vente à Crédit" };
+        await supabase.from("credits").insert({ boutique_id: uid, client, client_phone: clientPhone, article: resume, total: totalVente, avance, reste_a_payer: reste, date: today(), mode_paiement: modePaiement });
+      } else {
+        log.texte = nbArticles > 1 ? `🔴 Vente ${nbArticles} articles (${resume})` : `🔴 Vendu ${resume}`;
+        log.montant = totalVente;
+        log.benefice_etabli = gain;
+        log.details_facture = { client: "Client Comptoir", article: resume, lignes: lignesFacture, remise, total: totalVente, reste: 0, type: "Vente Comptant" };
+      }
+
+    } else if (action === "depense") {
+      log.texte = `💸 ${nom}`;
+      log.montant = montantDepense || 0;
+
+    } else {
+      const fId = donnees.fournisseurId || null;
+      const { data: existant } = await supabase.from("produits").select("*").eq("boutique_id", uid).ilike("nom", nom).maybeSingle();
+      if (existant) {
+        await supabase.from("produits").update({
+          stock: (existant.stock || 0) + quantite,
+          ...(prixVente ? { prix_vente: prixVente } : {}),
+          ...(prixAchat ? { prix_achat: prixAchat } : {}),
+          ...(fId ? { fournisseur_id: fId } : {}),
+        }).eq("id", existant.id);
+      } else {
+        await supabase.from("produits").insert({ boutique_id: uid, nom, prix_achat: prixAchat || 0, prix_vente: prixVente || 0, stock: quantite, fournisseur_id: fId });
+      }
+      log.texte = `🟢 Reçu +${quantite}x ${nom}`;
+      log.montant = (prixVente || 0) * quantite;
+    }
+
+    await supabase.from("historique").insert(log);
+    return { ok: true };
+  };
+
+  // Retour / avoir : réintègre le stock et enregistre un avoir négatif
+  const effectuerRetour = async (venteLog, lignesRetour) => {
+    if (!boutiqueActive) return;
+    const uid = boutiqueActive.id;
+    const lignesOrig = venteLog.details_facture?.lignes || [];
+    const totalOrigBrut = lignesOrig.reduce((s, l) => s + (l.total || 0), 0) || 1;
+    const remiseOrig = venteLog.details_facture?.remise || 0;
+
+    let refundBrut = 0, margeRendue = 0;
+    for (const l of lignesRetour) {
+      if (!l.qte) continue;
+      const { data: prod } = await supabase.from("produits").select("*").eq("boutique_id", uid).ilike("nom", l.nom).maybeSingle();
+      if (prod) await supabase.from("produits").update({ stock: (prod.stock || 0) + l.qte }).eq("id", prod.id);
+      else await supabase.from("produits").insert({ boutique_id: uid, nom: l.nom, prix_achat: 0, prix_vente: l.pu || 0, stock: l.qte });
+      refundBrut += (l.pu || 0) * l.qte;
+      margeRendue += ((l.pu || 0) - ((prod?.prix_achat || 0) + (prod?.frais_unitaire || 0))) * l.qte;
+    }
+    if (refundBrut === 0) { setStatut("⚠️ Rien à retourner."); return; }
+
+    // Remise répartie au prorata
+    const remiseProp = Math.round(remiseOrig * (refundBrut / totalOrigBrut));
+    const refund = refundBrut - remiseProp;
+    const marge = margeRendue - remiseProp;
+    const resume = lignesRetour.filter(l => l.qte).map(l => `${l.qte}x ${l.nom}`).join(", ");
+
+    await supabase.from("historique").insert({
+      boutique_id: uid, heure: heure(), date_iso: todayISO(),
+      texte: `↩️ Retour ${resume}`, type: "retour",
+      montant: refund, benefice_etabli: -marge,
+      mode_paiement: venteLog.mode_paiement || "especes", vendeur_nom: monNom,
+      details_facture: { client: venteLog.details_facture?.client || "Client", article: resume, lignes: lignesRetour.filter(l => l.qte), total: refund, type: "Retour / Avoir" },
+    });
+    // Journal d'audit (action sensible : retour/avoir)
+    try {
+      await supabase.from("journal_audit").insert({
+        boutique_id: uid, proprietaire_id: boutiqueActive.proprietaire_id || null, user_nom: monNom,
+        action: "retour", details: { resume, refund, vente_origine: venteLog.id },
+      });
+    } catch { /* ignore si table absente */ }
+    await chargerDonnees();
+    setStatut(`✅ Retour enregistré : -${fmt(refund)} F remboursé, stock réintégré.`);
+  };
+
+  // Saisie via formulaire : en ligne → écrit ; hors-ligne → met en file d'attente
+  const enregistrerForm = async (donnees) => {
+    if (!boutiqueActive) { setStatut("⚠️ Sélectionne une boutique d'abord."); return; }
+
+    if (!navigator.onLine) {
+      const n = ajouterOutbox({ id: `op_${Date.now()}`, boutiqueId: boutiqueActive.id, donnees });
+      setEnAttente(n);
+      if (donnees.action === "vente") bipVente();
+      setStatut(`📡 Hors-ligne — opération mise en file (${n}). Synchronisation auto au retour du réseau.`);
+      return;
+    }
+
+    setChargement(true);
+    setStatut("⏳ Enregistrement...");
+    const { ok, err } = await ecrireOperation(donnees, boutiqueActive.id);
+    if (ok) { await chargerDonnees(); if (donnees.action === "vente") bipVente(); setStatut("✅ Enregistré"); }
+    else { bipErreur(); setStatut(`❌ ${err}`); }
+    setChargement(false);
+  };
+
+  // Rejoue la file d'attente quand le réseau revient
+  const flushOutbox = useCallback(async () => {
+    if (!navigator.onLine) return;
+    const items = lireOutbox();
+    if (items.length === 0) return;
+
+    setStatut(`🔄 Synchronisation de ${items.length} opération(s)...`);
+    let echecs = 0;
+    for (const it of items) {
+      const { ok } = await ecrireOperation(it.donnees, it.boutiqueId);
+      if (ok) retirerOutbox(it.id);
+      else echecs++;
+    }
+    setEnAttente(tailleOutbox());
+    await chargerDonnees();
+    setStatut(echecs > 0 ? `⚠️ Synchro terminée, ${echecs} opération(s) en échec.` : "✅ Tout est synchronisé.");
+  }, [chargerDonnees]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Synchronise dès que le réseau revient (ou au démarrage si file non vide)
+  useEffect(() => { if (enLigne) flushOutbox(); }, [enLigne, flushOutbox]);
+
+  const deconnecter = async () => {
+    await supabase.auth.signOut();
+    setSession(null);
+    setBoutiques([]);
+    setBoutiqueActive(null);
+    setVueGlobale(false);
+    setAbonnement(null);
+    setEstProprio(false);
+  };
+
+  if (!session) return <Auth />;
+
+  // Écran de définition d'un nouveau mot de passe (après clic sur le lien email)
+  if (recovery) {
+    return (
+      <div style={{ background: C.bg, minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
+        <div style={{ width: "100%", maxWidth: 380 }}>
+          <div style={{ textAlign: "center", marginBottom: 20 }}>
+            <div style={{ fontSize: 34, marginBottom: 8 }}>🔑</div>
+            <div style={{ fontSize: 18, fontWeight: "bold", color: C.text }}>Nouveau mot de passe</div>
+          </div>
+          <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, padding: 20 }}>
+            <div style={{ position: "relative", marginBottom: 12 }}>
+              <input type={voirMdp ? "text" : "password"} value={nouveauMdp} onChange={e => setNouveauMdp(e.target.value)}
+                placeholder="Ton nouveau mot de passe"
+                style={{ width: "100%", padding: "10px 44px 10px 14px", background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, color: C.text, fontSize: 13, boxSizing: "border-box", outline: "none" }} />
+              <button type="button" onClick={() => setVoirMdp(v => !v)}
+                style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", background: "transparent", border: "none", cursor: "pointer", fontSize: 16 }}>
+                {voirMdp ? "🙈" : "👁️"}
+              </button>
+            </div>
+            {statut && <div style={{ fontSize: 12, textAlign: "center", marginBottom: 10, color: statut.startsWith("❌") || statut.startsWith("⚠️") ? C.red : C.green }}>{statut}</div>}
+            <button onClick={definirNouveauMdp}
+              style={{ width: "100%", padding: 12, background: C.green, color: C.bg, border: "none", borderRadius: 8, fontWeight: "bold", fontSize: 14, cursor: "pointer" }}>
+              Valider
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Abonnement : on bloque le propriétaire si son essai/abonnement est expiré
+  const aboExpire = estProprio && abonnement && new Date(abonnement.date_fin) <= new Date();
+  if (aboExpire) {
+    return <Paywall abonnement={abonnement} nomBoutique={boutiques[0]?.nom} email={session.user.email} onDeconnexion={deconnecter} />;
+  }
+
+  // Onboarding au tout premier lancement (propriétaire)
+  if (estProprio && montrerOnboarding) {
+    return <Onboarding onFini={() => setMontrerOnboarding(false)} />;
+  }
+  const joursRestants = abonnement ? Math.max(0, Math.ceil((new Date(abonnement.date_fin) - new Date()) / 86400000)) : null;
+  const estAdmin = (session.user.email || "").toLowerCase() === ADMIN_EMAIL.toLowerCase();
+
+  const estEntrepot = !vueGlobale && boutiqueActive?.type === "entrepot";
+  const estPatron = monRole === "proprietaire" || monRole === "gerant";
+
+  // Permissions effectives de l'utilisateur sur la boutique active
+  const estOwner = !vueGlobale && boutiqueActive?.proprietaire_id === session.user.id;
+  const monMembre = mesMembres.find(x => x.boutique_id === boutiqueActive?.id);
+  const perms = permsDe({ estOwner: estOwner || vueGlobale, role: monRole, permissions: monMembre?.permissions });
+  const peutVoirBenefice = perms.benefice_voir;
+  const recepAttente = transferts.filter(t => t.dest_id === boutiqueActive?.id && t.statut === "en_attente").length;
+
+  // Onglets selon le rôle : un vendeur a un accès restreint
+  const tabsPatron = [
+    { id: "dashboard", label: "🏠", title: t("accueil") },
+    { id: "saisie", label: "➕", title: t("saisie") },
+    { id: "transferts", label: "🔄", title: t("transferts"), badge: recepAttente },
+    { id: "historique", label: "📊", title: t("historique") },
+    { id: "stock", label: "📦", title: t("stock") },
+    { id: "fournisseurs", label: "🚚", title: t("reassort"), badge: produits.filter(p => (p.stock || 0) <= (p.seuil_alerte ?? 2)).length },
+    { id: "credits", label: "📒", title: t("credits"), badge: credits.length },
+    { id: "clients", label: "👥", title: t("clients") },
+    { id: "documents", label: "🧾", title: t("documents") },
+    { id: "chat", label: "💬", title: t("chat") },
+    { id: "equipe", label: "🧑‍🤝‍🧑", title: t("equipe") },
+    { id: "caisse", label: "🔒", title: t("caisse") },
+    { id: "inventaire", label: "📋", title: t("inventaire") },
+    { id: "stats", label: "📈", title: t("stats") },
+    ...(estAdmin ? [{ id: "admin", label: "👑", title: t("admin") }] : []),
+  ];
+  // Onglets du vendeur filtrés selon ses permissions
+  const tabsVendeur = [
+    { id: "saisie", label: "➕", title: t("vendre") },
+    { id: "historique", label: "📊", title: t("historique") },
+    perms.stock_modifier && { id: "stock", label: "📦", title: t("stock") },
+    perms.credit_accorder && { id: "credits", label: "📒", title: t("credits"), badge: credits.length },
+    { id: "documents", label: "🧾", title: t("documents") },
+    { id: "chat", label: "💬", title: t("chat") },
+    perms.caisse_voir && { id: "caisse", label: "🔒", title: t("caisse") },
+    { id: "clients", label: "👥", title: t("clients") },
+  ].filter(Boolean);
+  const tabs = estPatron ? tabsPatron : tabsVendeur;
+
+  // Barre du bas = 4 principaux + bouton "Plus" (le reste dans un menu)
+  const idsPrimaires = estPatron ? ["dashboard", "saisie", "stock", "credits"] : ["saisie", ...(perms.stock_modifier ? ["stock"] : []), ...(perms.credit_accorder ? ["credits"] : []), ...(perms.caisse_voir ? ["caisse"] : [])].slice(0, 4);
+  const primaires = idsPrimaires.map(id => tabs.find(t => t.id === id)).filter(Boolean);
+  const secondaires = tabs.filter(t => !idsPrimaires.includes(t.id));
+  const badgeSecondaire = secondaires.some(t => t.badge > 0);
+
+  // Si le vendeur est sur un onglet interdit, le ramener sur "saisie"
+  if (!tabs.some(t => t.id === onglet)) {
+    // évite une boucle : on ne reset que si nécessaire
+    if (onglet !== "saisie") setTimeout(() => setOnglet("saisie"), 0);
+  }
+
+  return (
+    <div style={{ background: C.bg, color: C.text, minHeight: "100vh", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", maxWidth: 480, margin: "0 auto" }}>
+
+      <div style={{ background: "rgba(22,28,36,0.82)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", padding: "12px 16px", borderBottom: `1px solid ${C.border}`, position: "sticky", top: 0, zIndex: 100, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div>
+          <div style={{ fontSize: 15, fontWeight: "bold", color: C.green }}>Gangué</div>
+          <div style={{ fontSize: 10, color: C.muted }}>Gestion Commerciale</div>
+        </div>
+        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+          {enAttente > 0 && (
+            <div style={{ background: C.yellow + "22", color: C.yellow, padding: "3px 8px", borderRadius: 10, fontSize: 10, fontWeight: "bold" }} title="Opérations en attente de synchronisation">
+              ⏳ {enAttente}
+            </div>
+          )}
+          {estProprio && abonnement?.plan === "essai" && joursRestants != null && (
+            <div style={{ background: (joursRestants <= 3 ? C.red : C.yellow) + "22", color: joursRestants <= 3 ? C.red : C.yellow, padding: "3px 8px", borderRadius: 10, fontSize: 10, fontWeight: "bold" }} title="Essai gratuit restant">
+              ⏳ Essai {joursRestants}j
+            </div>
+          )}
+          {!estPatron && (
+            <div style={{ background: C.blue + "22", color: C.blue, padding: "3px 8px", borderRadius: 10, fontSize: 10, fontWeight: "bold" }}>
+              👤 {monNom}
+            </div>
+          )}
+          {peutVoirBenefice && (
+            <>
+              <div style={{ background: C.red + "22", color: C.red, padding: "3px 8px", borderRadius: 10, fontSize: 10, fontWeight: "bold" }}>
+                -{fmt(kpi.dettes)} F
+              </div>
+              <div style={{ background: kpi.benefice >= 0 ? C.green + "22" : C.red + "22", color: kpi.benefice >= 0 ? C.green : C.red, padding: "3px 8px", borderRadius: 10, fontSize: 10, fontWeight: "bold" }}>
+                {kpi.benefice >= 0 ? "+" : ""}{fmt(kpi.benefice)} F
+              </div>
+            </>
+          )}
+          <button onClick={() => setCompteOuvert(true)} title="Mon compte"
+            style={{ background: "transparent", border: `1px solid ${C.border}`, color: C.muted, borderRadius: 6, padding: "4px 8px", cursor: "pointer", fontSize: 12 }}>
+            ⚙️
+          </button>
+        </div>
+      </div>
+
+      {compteOuvert && (
+        <Compte email={session.user.email} onClose={() => setCompteOuvert(false)}
+          onLogout={() => { setCompteOuvert(false); deconnecter(); }} onStatut={setStatut}
+          onExport={() => { setCompteOuvert(false); exporterDonnees(); }}
+          theme={theme} onTheme={changerTheme} langue={langue} onLangue={changerLangue}
+          boutiques={boutiques} boutiqueActive={boutiqueActive} vueGlobale={vueGlobale}
+          proprietaireId={session.user.id} estPatron={estPatron}
+          onSelectBoutique={(b) => { setBoutiqueActive(b); setVueGlobale(false); }}
+          onGlobale={() => { setVueGlobale(true); if (onglet === "saisie") setOnglet("dashboard"); }}
+          onBoutiqueCreated={(b) => { setBoutiques(prev => [...prev, b]); setBoutiqueActive(b); setVueGlobale(false); }} />
+      )}
+
+      {/* RAPPEL FIN D'ESSAI (≤ 3 jours) */}
+      {estProprio && abonnement?.plan === "essai" && joursRestants != null && joursRestants <= 3 && (
+        <div style={{ background: C.red + "18", borderBottom: `1px solid ${C.red}44`, padding: "8px 12px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+          <span style={{ color: C.red, fontSize: 12, fontWeight: "bold" }}>
+            ⏳ Ton essai se termine dans {joursRestants} jour{joursRestants > 1 ? "s" : ""}
+          </span>
+          <button onClick={demanderAbonnement}
+            style={{ background: C.green, color: C.bg, border: "none", borderRadius: 8, padding: "5px 12px", fontSize: 12, fontWeight: "bold", cursor: "pointer", whiteSpace: "nowrap" }}>
+            S'abonner
+          </button>
+        </div>
+      )}
+
+      {!enLigne && (
+        <div style={{ background: C.yellow + "22", color: C.yellow, borderBottom: `1px solid ${C.yellow}44`, padding: "6px 12px", fontSize: 11, textAlign: "center", fontWeight: "bold" }}>
+          📡 Hors-ligne — l'app reste consultable. Les nouvelles opérations attendront le retour du réseau.
+        </div>
+      )}
+
+      {statut && (() => {
+        const err = statut.startsWith("❌") || statut.startsWith("⚠️");
+        const couleur = err ? C.red : C.green;
+        return (
+          <div onClick={() => setStatut("")} style={{ position: "fixed", bottom: 74, left: "50%", transform: "translateX(-50%)", zIndex: 500, width: "calc(100% - 24px)", maxWidth: 456, animation: "fadeInUp 0.25s cubic-bezier(0.22,1,0.36,1)" }}>
+            <div style={{ background: C.surface, border: `1px solid ${couleur}66`, borderLeft: `4px solid ${couleur}`, borderRadius: 10, padding: "11px 14px", fontSize: 13, color: C.text, boxShadow: "0 8px 28px rgba(0,0,0,0.45)", display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ flex: 1 }}>{statut}</span>
+            </div>
+          </div>
+        );
+      })()}
+
+      <div key={onglet} className="tab-content" style={{ paddingTop: 12, paddingBottom: 70 }}>
+        {onglet === "dashboard" && <Dashboard kpi={kpi} historique={historique} credits={credits} produits={produits} estPatron={peutVoirBenefice} onImprimer={h => imprimerFacture(h, boutique)} onWhatsApp={h => envoyerRecuWhatsApp(h, boutique)} />}
+        {onglet === "saisie" && (
+          <div style={{ padding: "0 12px 12px" }}>
+            {vueGlobale ? (
+              <div style={{ background: C.surface, borderRadius: 8, border: `1px solid ${C.border}`, padding: 20, textAlign: "center", color: C.muted, fontSize: 13 }}>
+                🌍 Vue globale active.<br />Choisis une boutique précise en haut pour enregistrer une opération.
+              </div>
+            ) : (
+              <SaisieForm produits={produits} onSubmit={enregistrerForm} chargement={chargement} estEntrepot={estEntrepot} fournisseurs={fournisseurs} />
+            )}
+          </div>
+        )}
+        {onglet === "transferts" && (
+          vueGlobale ? (
+            <div style={{ padding: "0 12px" }}>
+              <div style={{ background: C.surface, borderRadius: 8, border: `1px solid ${C.border}`, padding: 20, textAlign: "center", color: C.muted, fontSize: 13 }}>
+                🌍 Choisis une boutique précise en haut pour gérer ses transferts.
+              </div>
+            </div>
+          ) : (
+            <Transferts produits={produits} boutiques={boutiques} active={boutiqueActive} proprietaireId={session.user.id} transferts={transferts} onRefresh={chargerDonnees} onStatut={setStatut} />
+          )
+        )}
+        {onglet === "historique" && <Historique historique={historique} produits={produits} boutiqueId={boutiqueActive?.id} onRefresh={chargerDonnees} onImprimer={h => imprimerFacture(h, boutique)} onWhatsApp={h => envoyerRecuWhatsApp(h, boutique)} onRetour={effectuerRetour} voirBenefice={peutVoirBenefice} peutRetourner={perms.vente_modifier || estPatron} />}
+        {onglet === "stock" && <Stock produits={produits} boutiqueId={boutiqueActive?.id} onRefresh={chargerDonnees} fournisseurs={fournisseurs} onTransfer={!vueGlobale && boutiques.length > 1 ? () => setOnglet("transferts") : null} voirPrixAchat={perms.prix_achat_voir} peutModifier={perms.stock_modifier || estPatron} />}
+        {onglet === "fournisseurs" && estPatron && (
+          vueGlobale ? (
+            <div style={{ padding: "0 12px" }}>
+              <div style={{ background: C.surface, borderRadius: 8, border: `1px solid ${C.border}`, padding: 20, textAlign: "center", color: C.muted, fontSize: 13 }}>
+                🌍 Choisis une boutique précise en haut pour gérer le réassort.
+              </div>
+            </div>
+          ) : (
+            <Fournisseurs produits={produits} boutiqueActive={boutiqueActive} onRefresh={chargerDonnees} onStatut={setStatut} boutique={boutique} />
+          )
+        )}
+        {onglet === "credits" && <Credits credits={credits} kpi={kpi} boutiqueId={boutiqueActive?.id} onRefresh={chargerDonnees} onStatut={setStatut} boutique={boutique} />}
+        {onglet === "clients" && <Clients credits={credits} historique={historique} boutique={boutique} boutiqueId={vueGlobale ? null : boutiqueActive?.id} />}
+        {onglet === "documents" && (
+          vueGlobale ? (
+            <div style={{ padding: "0 12px" }}>
+              <div style={{ background: C.surface, borderRadius: 8, border: `1px solid ${C.border}`, padding: 20, textAlign: "center", color: C.muted, fontSize: 13 }}>
+                🌍 Choisis une boutique précise en haut pour gérer ses documents.
+              </div>
+            </div>
+          ) : (
+            <Documents produits={produits} boutiqueActive={boutiqueActive} boutique={boutique} credits={credits} historique={historique} onStatut={setStatut} />
+          )
+        )}
+        {onglet === "chat" && (
+          vueGlobale ? (
+            <div style={{ padding: "0 12px" }}>
+              <div style={{ background: C.surface, borderRadius: 8, border: `1px solid ${C.border}`, padding: 20, textAlign: "center", color: C.muted, fontSize: 13 }}>
+                🌍 Choisis une boutique précise en haut pour discuter avec son équipe.
+              </div>
+            </div>
+          ) : (
+            <Chat boutiqueActive={boutiqueActive} userId={session.user.id} monNom={monNom} onStatut={setStatut} />
+          )
+        )}
+        {onglet === "caisse" && (
+          vueGlobale ? (
+            <div style={{ padding: "0 12px" }}>
+              <div style={{ background: C.surface, borderRadius: 8, border: `1px solid ${C.border}`, padding: 20, textAlign: "center", color: C.muted, fontSize: 13 }}>
+                🌍 Choisis une boutique précise en haut pour clôturer sa caisse.
+              </div>
+            </div>
+          ) : (
+            <Cloture historique={historique} boutiqueActive={boutiqueActive} monNom={monNom} estPatron={estPatron} onStatut={setStatut} />
+          )
+        )}
+        {onglet === "equipe" && estPatron && (
+          vueGlobale ? (
+            <div style={{ padding: "0 12px" }}>
+              <div style={{ background: C.surface, borderRadius: 8, border: `1px solid ${C.border}`, padding: 20, textAlign: "center", color: C.muted, fontSize: 13 }}>
+                🌍 Choisis une boutique précise en haut pour gérer son équipe.
+              </div>
+            </div>
+          ) : (
+            <Equipe boutiqueActive={boutiqueActive} proprietaireId={session.user.id} historique={historique} onStatut={setStatut} />
+          )
+        )}
+        {onglet === "inventaire" && estPatron && (
+          vueGlobale ? (
+            <div style={{ padding: "0 12px" }}>
+              <div style={{ background: C.surface, borderRadius: 8, border: `1px solid ${C.border}`, padding: 20, textAlign: "center", color: C.muted, fontSize: 13 }}>
+                🌍 Choisis une boutique précise en haut pour faire l'inventaire.
+              </div>
+            </div>
+          ) : (
+            <Inventaire produits={produits} boutiqueActive={boutiqueActive} monNom={monNom} onRefresh={chargerDonnees} onStatut={setStatut} />
+          )
+        )}
+        {onglet === "stats" && estPatron && <Stats kpi={kpi} historique={historique} produits={produits} boutique={boutique} boutiqueActive={boutiqueActive} vueGlobale={vueGlobale} onRefresh={chargerDonnees} />}
+        {onglet === "admin" && estAdmin && <Admin onStatut={setStatut} />}
+      </div>
+
+      {/* MENU "PLUS" (onglets secondaires) */}
+      {menuPlus && (
+        <>
+          <div onClick={() => setMenuPlus(false)} style={{ position: "fixed", inset: 0, zIndex: 150, background: "rgba(0,0,0,0.5)" }} />
+          <div style={{ position: "fixed", bottom: 60, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 480, zIndex: 151, padding: "0 12px", boxSizing: "border-box" }}>
+            <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, padding: 10, boxShadow: "0 12px 40px rgba(0,0,0,0.5)" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+                {secondaires.map(tab => {
+                  const actif = onglet === tab.id;
+                  return (
+                    <button key={tab.id} onClick={() => { setOnglet(tab.id); setMenuPlus(false); }}
+                      style={{ position: "relative", padding: "14px 6px", borderRadius: 10, cursor: "pointer",
+                        border: `1px solid ${actif ? C.green : C.border}`, background: actif ? C.green + "18" : C.surface2 }}>
+                      <div style={{ fontSize: 22 }}>{tab.label}</div>
+                      <div style={{ fontSize: 10, color: actif ? C.green : C.text, marginTop: 4, fontWeight: actif ? "bold" : "normal" }}>{tab.title}</div>
+                      {tab.badge > 0 && (
+                        <div style={{ position: "absolute", top: 6, right: 6, background: C.red, color: "#fff", fontSize: 9, minWidth: 16, height: 16, padding: "0 4px", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "bold" }}>{tab.badge}</div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      <div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 480, background: "rgba(22,28,36,0.9)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", borderTop: `1px solid ${C.border}`, display: "flex", boxSizing: "border-box", boxShadow: "0 -4px 24px rgba(0,0,0,0.3)", zIndex: 152 }}>
+        {primaires.map(tab => {
+          const actif = onglet === tab.id;
+          return (
+            <button key={tab.id} onClick={() => { setOnglet(tab.id); setMenuPlus(false); }}
+              style={{ flex: 1, padding: "7px 2px 6px", background: "transparent", border: "none", cursor: "pointer", position: "relative" }}>
+              <div style={{ fontSize: 19, transform: actif ? "translateY(-1px) scale(1.12)" : "none", transition: "transform 0.2s cubic-bezier(0.22,1,0.36,1)", filter: actif ? "none" : "grayscale(0.3) opacity(0.85)" }}>{tab.label}</div>
+              <div style={{ fontSize: 9, color: actif ? C.green : C.muted, marginTop: 2, fontWeight: actif ? "bold" : "normal" }}>{tab.title}</div>
+              {tab.badge > 0 && (
+                <div style={{ position: "absolute", top: 2, right: "50%", transform: "translateX(9px)", background: C.red, color: "#fff", fontSize: 8, minWidth: 14, height: 14, padding: "0 3px", borderRadius: 7, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "bold", animation: "popIn 0.2s ease" }}>{tab.badge}</div>
+              )}
+              {actif && <div style={{ position: "absolute", bottom: 0, left: "25%", right: "25%", height: 2.5, background: C.green, borderRadius: 2, boxShadow: `0 0 8px ${C.green}` }} />}
+            </button>
+          );
+        })}
+        {/* Bouton PLUS */}
+        {secondaires.length > 0 && (
+          <button onClick={() => setMenuPlus(o => !o)}
+            style={{ flex: 1, padding: "7px 2px 6px", background: "transparent", border: "none", cursor: "pointer", position: "relative" }}>
+            <div style={{ fontSize: 19, filter: menuPlus ? "none" : "grayscale(0.3) opacity(0.85)" }}>{menuPlus ? "✖️" : "⋯"}</div>
+            <div style={{ fontSize: 9, color: menuPlus ? C.green : C.muted, marginTop: 2, fontWeight: menuPlus ? "bold" : "normal" }}>{t("plus")}</div>
+            {badgeSecondaire && !menuPlus && (
+              <div style={{ position: "absolute", top: 4, right: "50%", transform: "translateX(9px)", background: C.red, width: 8, height: 8, borderRadius: 4 }} />
+            )}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
