@@ -371,12 +371,32 @@ export default function App() {
 
   // Suppression d'un mouvement d'historique avec réintégration du stock + audit
   const supprimerMouvement = async (h) => {
-    if (!boutiqueActive) return;
-    const uid = boutiqueActive.id;
+    // On agit toujours sur la boutique d'origine du mouvement (utile en vue globale)
+    const uid = h.boutique_id || boutiqueActive?.id;
+    if (!uid) return;
 
     // 1. Réintègre/retire le stock selon le type de mouvement
     try {
-      if (h.type === "vente") {
+      if (h.type === "transfert") {
+        // Une jambe de transfert : "sortie" a retiré le stock ici → on ré-ajoute ;
+        // "entree" (réception ou retour de refus) a ajouté → on retire.
+        let nom = "", qte = 0, effet = 0; // effet: +1 = ré-ajoute, -1 = retire
+        const d = h.details_facture;
+        if (d?.produit_nom && d?.qte) {
+          nom = d.produit_nom; qte = d.qte; effet = d.sens === "sortie" ? +1 : -1;
+        } else {
+          // Repli pour les anciens transferts sans données structurées
+          const m = /(\d+)x\s+(.+?)\s*[→←(]/.exec(h.texte || "");
+          if (m) { qte = parseInt(m[1]) || 0; nom = m[2].trim(); }
+          const txt = h.texte || "";
+          if (txt.includes("📤")) effet = +1;
+          else if (txt.includes("📥") || txt.includes("↩️")) effet = -1;
+        }
+        if (nom && qte && effet !== 0) {
+          const { data: p } = await supabase.from("produits").select("id, stock").eq("boutique_id", uid).ilike("nom", nom).maybeSingle();
+          if (p) await supabase.from("produits").update({ stock: Math.max(0, (p.stock || 0) + effet * qte) }).eq("id", p.id);
+        }
+      } else if (h.type === "vente") {
         // La vente avait décrémenté le stock → on le ré-ajoute
         for (const l of (h.details_facture?.lignes || [])) {
           const { data: p } = await supabase.from("produits").select("id, stock").eq("boutique_id", uid).ilike("nom", l.nom).maybeSingle();

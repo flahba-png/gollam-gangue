@@ -3,11 +3,15 @@ import { C, today, heure, todayISO } from "../theme";
 import { t } from "../i18n";
 import { supabase } from "../supabase";
 
-// Enregistre un mouvement de stock dans l'historique d'un lieu
-const logMouvement = (boutiqueId, texte) =>
+// Enregistre un mouvement de stock dans l'historique d'un lieu.
+// `details` = { sens, produit_nom, qte } pour permettre une réintégration
+// EXACTE du stock si le mouvement est supprimé plus tard (sens: "sortie"
+// = stock retiré de ce lieu ; "entree" = stock ajouté à ce lieu).
+const logMouvement = (boutiqueId, texte, details = null) =>
   supabase.from("historique").insert({
     boutique_id: boutiqueId, heure: heure(), date_iso: todayISO(),
     texte, type: "transfert", montant: 0, benefice_etabli: 0,
+    details_facture: details ? { type: "transfert", ...details } : null,
   });
 
 export default function Transferts({ produits, boutiques, active, proprietaireId, transferts, onRefresh, onStatut }) {
@@ -45,7 +49,7 @@ export default function Transferts({ produits, boutiques, active, proprietaireId
       statut: "en_attente",
       date_envoi: today(),
     });
-    await logMouvement(active.id, `📤 Sortie ${qte}x ${produitSel.nom} → ${nomLieu(destId)}`);
+    await logMouvement(active.id, `📤 Sortie ${qte}x ${produitSel.nom} → ${nomLieu(destId)}`, { sens: "sortie", produit_nom: produitSel.nom, qte });
     setEnCours(false);
     setProduitId(""); setDestId(""); setQuantite("1");
     onStatut(`✅ Transfert envoyé vers ${nomLieu(destId)} (en attente de réception).`);
@@ -66,7 +70,7 @@ export default function Transferts({ produits, boutiques, active, proprietaireId
       });
     }
     await supabase.from("transferts").update({ statut: "recu" }).eq("id", t.id);
-    await logMouvement(t.dest_id, `📥 Entrée ${t.quantite}x ${t.produit_nom} ← ${nomLieu(t.source_id)}`);
+    await logMouvement(t.dest_id, `📥 Entrée ${t.quantite}x ${t.produit_nom} ← ${nomLieu(t.source_id)}`, { sens: "entree", produit_nom: t.produit_nom, qte: t.quantite });
     onStatut(`✅ ${t.quantite}x ${t.produit_nom} reçu et ajouté au stock.`);
     onRefresh();
   };
@@ -85,7 +89,7 @@ export default function Transferts({ produits, boutiques, active, proprietaireId
       });
     }
     await supabase.from("transferts").update({ statut: "annule" }).eq("id", t.id);
-    await logMouvement(t.source_id, `↩️ Retour ${t.quantite}x ${t.produit_nom} (refusé par ${nomLieu(t.dest_id)})`);
+    await logMouvement(t.source_id, `↩️ Retour ${t.quantite}x ${t.produit_nom} (refusé par ${nomLieu(t.dest_id)})`, { sens: "entree", produit_nom: t.produit_nom, qte: t.quantite });
     onStatut("↩️ Transfert refusé. Stock rendu à l'expéditeur.");
     onRefresh();
   };
