@@ -380,21 +380,35 @@ export default function App() {
       if (h.type === "transfert") {
         // Une jambe de transfert : "sortie" a retiré le stock ici → on ré-ajoute ;
         // "entree" (réception ou retour de refus) a ajouté → on retire.
-        let nom = "", qte = 0, effet = 0; // effet: +1 = ré-ajoute, -1 = retire
+        const txt = h.texte || "";
+        const refus = txt.includes("refusé"); // jambe de refus : fiche déjà "annule"
+        let nom = "", qte = 0, sens = "";
         const d = h.details_facture;
         if (d?.produit_nom && d?.qte) {
-          nom = d.produit_nom; qte = d.qte; effet = d.sens === "sortie" ? +1 : -1;
+          nom = d.produit_nom; qte = d.qte; sens = d.sens;
         } else {
           // Repli pour les anciens transferts sans données structurées
-          const m = /(\d+)x\s+(.+?)\s*[→←(]/.exec(h.texte || "");
+          const m = /(\d+)x\s+(.+?)\s*[→←(]/.exec(txt);
           if (m) { qte = parseInt(m[1]) || 0; nom = m[2].trim(); }
-          const txt = h.texte || "";
-          if (txt.includes("📤")) effet = +1;
-          else if (txt.includes("📥") || txt.includes("↩️")) effet = -1;
+          sens = txt.includes("📤") ? "sortie" : "entree";
         }
-        if (nom && qte && effet !== 0) {
+        const effet = sens === "sortie" ? +1 : -1; // +1 = ré-ajoute, -1 = retire
+        if (nom && qte) {
           const { data: p } = await supabase.from("produits").select("id, stock").eq("boutique_id", uid).ilike("nom", nom).maybeSingle();
           if (p) await supabase.from("produits").update({ stock: Math.max(0, (p.stock || 0) + effet * qte) }).eq("id", p.id);
+
+          // Cohérence : on repasse la fiche transfert liée en "annulé"
+          // (sauf jambe de refus, déjà annulée). On cible la plus récente qui colle.
+          if (!refus) {
+            const champLieu = sens === "sortie" ? "source_id" : "dest_id";
+            const statutsActifs = sens === "sortie" ? ["en_attente", "recu"] : ["recu"];
+            const { data: fiches } = await supabase.from("transferts")
+              .select("id").eq(champLieu, uid).ilike("produit_nom", nom).eq("quantite", qte)
+              .in("statut", statutsActifs).order("date_envoi", { ascending: false }).limit(1);
+            if (fiches && fiches[0]) {
+              await supabase.from("transferts").update({ statut: "annule" }).eq("id", fiches[0].id);
+            }
+          }
         }
       } else if (h.type === "vente") {
         // La vente avait décrémenté le stock → on le ré-ajoute
