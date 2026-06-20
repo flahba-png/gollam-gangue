@@ -85,6 +85,98 @@ export default function App() {
     setStatut("✅ Sauvegarde téléchargée.");
   };
 
+  // Restauration : fusionne une sauvegarde JSON SANS créer de doublons.
+  // - boutiques manquantes recréées (rattachées au compte courant)
+  // - lignes ré-insérées seulement si absentes (signature unique)
+  const restaurerSauvegarde = async (fichier) => {
+    let data;
+    try {
+      data = JSON.parse(await fichier.text());
+    } catch { setStatut("❌ Fichier illisible (JSON invalide)."); return; }
+    if (!data || !Array.isArray(data.boutiques) || !Array.isArray(data.produits)) {
+      setStatut("❌ Ce n'est pas une sauvegarde Gangué valide."); return;
+    }
+    setStatut("⏳ Restauration en cours...");
+    const norm = (s) => String(s || "").trim().toLowerCase();
+    try {
+      // 1. Boutiques : on réutilise celle du même nom, sinon on la recrée (rattachée à moi)
+      const locales = [...boutiques];
+      const map = {}; // ancien id -> id cible
+      for (const b of data.boutiques) {
+        let cible = locales.find(x => norm(x.nom) === norm(b.nom));
+        if (!cible) {
+          const { id, proprietaire_id, parent_id, created_at, ...reste } = b; // eslint-disable-line no-unused-vars
+          const { data: cree, error } = await supabase.from("boutiques")
+            .insert({ ...reste, proprietaire_id: session.user.id }).select().single();
+          if (error) throw error;
+          cible = cree; locales.push(cree);
+        }
+        map[b.id] = cible.id;
+      }
+      // 2ᵉ passe : recâble les parent_id (entrepôts) sur les nouveaux ids
+      for (const b of data.boutiques) {
+        if (b.parent_id && map[b.parent_id] && map[b.id]) {
+          await supabase.from("boutiques").update({ parent_id: map[b.parent_id] }).eq("id", map[b.id]);
+        }
+      }
+
+      const cibleIds = [...new Set(Object.values(map))];
+      // 2. Charge l'existant pour dédoublonner
+      const [{ data: pEx }, { data: hEx }, { data: cEx }, { data: dEx }] = await Promise.all([
+        supabase.from("produits").select("nom, boutique_id").in("boutique_id", cibleIds),
+        supabase.from("historique").select("date_iso, heure, texte, montant, boutique_id").in("boutique_id", cibleIds),
+        supabase.from("credits").select("client, article, total, boutique_id").in("boutique_id", cibleIds),
+        supabase.from("documents").select("numero, boutique_id").in("boutique_id", cibleIds),
+      ]);
+      const sigP = new Set((pEx || []).map(r => `${r.boutique_id}|${norm(r.nom)}`));
+      const sigH = new Set((hEx || []).map(r => `${r.boutique_id}|${r.date_iso}|${r.heure}|${r.texte}|${r.montant}`));
+      const sigC = new Set((cEx || []).map(r => `${r.boutique_id}|${norm(r.client)}|${norm(r.article)}|${r.total}`));
+      const sigD = new Set((dEx || []).map(r => `${r.boutique_id}|${r.numero}`));
+
+      // 3. Prépare les insertions (sans id, boutique_id recâblé, hors doublons)
+      const sansId = (row) => { const { id, created_at, ...reste } = row; return reste; }; // eslint-disable-line no-unused-vars
+      const aImporter = { produits: [], historique: [], credits: [], documents: [] };
+
+      for (const p of (data.produits || [])) {
+        const bid = map[p.boutique_id]; if (!bid) continue;
+        if (sigP.has(`${bid}|${norm(p.nom)}`)) continue;
+        aImporter.produits.push({ ...sansId(p), boutique_id: bid });
+      }
+      for (const h of (data.historique || [])) {
+        const bid = map[h.boutique_id]; if (!bid) continue;
+        if (sigH.has(`${bid}|${h.date_iso}|${h.heure}|${h.texte}|${h.montant}`)) continue;
+        aImporter.historique.push({ ...sansId(h), boutique_id: bid });
+      }
+      for (const c of (data.credits || [])) {
+        const bid = map[c.boutique_id]; if (!bid) continue;
+        if (sigC.has(`${bid}|${norm(c.client)}|${norm(c.article)}|${c.total}`)) continue;
+        aImporter.credits.push({ ...sansId(c), boutique_id: bid });
+      }
+      for (const d of (data.documents || [])) {
+        const bid = map[d.boutique_id]; if (!bid) continue;
+        if (sigD.has(`${bid}|${d.numero}`)) continue;
+        aImporter.documents.push({ ...sansId(d), boutique_id: bid });
+      }
+
+      // 4. Insertion par lots
+      let total = 0;
+      for (const [table, lignes] of Object.entries(aImporter)) {
+        for (let i = 0; i < lignes.length; i += 200) {
+          const lot = lignes.slice(i, i + 200);
+          const { error } = await supabase.from(table).insert(lot);
+          if (error) throw error;
+          total += lot.length;
+        }
+      }
+
+      setBoutiques(locales);
+      await chargerDonnees();
+      setStatut(`✅ Restauration terminée : ${total} élément(s) réintégré(s) (doublons ignorés).`);
+    } catch (e) {
+      setStatut("❌ Échec de la restauration : " + (e.message || e));
+    }
+  };
+
   // Demande d'abonnement par WhatsApp (depuis le bandeau de rappel)
   const demanderAbonnement = () => {
     envoyerWhatsApp(ADMIN_WHATSAPP,
@@ -651,6 +743,7 @@ export default function App() {
         <Compte email={session.user.email} onClose={() => setCompteOuvert(false)}
           onLogout={() => { setCompteOuvert(false); deconnecter(); }} onStatut={setStatut}
           onExport={() => { setCompteOuvert(false); exporterDonnees(); }}
+          onRestaurer={(f) => { setCompteOuvert(false); restaurerSauvegarde(f); }}
           theme={theme} onTheme={changerTheme} langue={langue} onLangue={changerLangue}
           boutiques={boutiques} boutiqueActive={boutiqueActive} vueGlobale={vueGlobale}
           proprietaireId={session.user.id} estPatron={estPatron}

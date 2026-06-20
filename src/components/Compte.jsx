@@ -5,7 +5,7 @@ import { LANGUES_DISPO } from "../i18n";
 import BoutiqueSwitcher from "./BoutiqueSwitcher";
 
 // Écran "Mon compte" : boutiques, email, changer mot de passe, déconnexion
-export default function Compte({ email, onClose, onLogout, onStatut, onExport, theme = "sombre", onTheme, langue = "fr", onLangue,
+export default function Compte({ email, onClose, onLogout, onStatut, onExport, onRestaurer, theme = "sombre", onTheme, langue = "fr", onLangue,
   boutiques = [], boutiqueActive, vueGlobale, proprietaireId, estPatron, onSelectBoutique, onGlobale, onBoutiqueCreated }) {
   const [nouveau, setNouveau] = useState("");
   const [voir, setVoir] = useState(false);
@@ -85,6 +85,17 @@ export default function Compte({ email, onClose, onLogout, onStatut, onExport, t
             style={{ width: "100%", padding: 11, background: C.blue + "18", color: C.blue, border: `1px solid ${C.blue}44`, borderRadius: 8, fontWeight: "bold", fontSize: 13, cursor: "pointer", marginBottom: 10 }}>
             💾 Sauvegarder mes données
           </button>
+        )}
+        {onRestaurer && (
+          <label style={{ display: "block", width: "100%", boxSizing: "border-box", padding: 11, background: C.green + "18", color: C.green, border: `1px solid ${C.green}44`, borderRadius: 8, fontWeight: "bold", fontSize: 13, cursor: "pointer", marginBottom: 4, textAlign: "center" }}>
+            ♻️ Restaurer une sauvegarde
+            <input type="file" accept=".json,application/json" onChange={e => { const f = e.target.files[0]; e.target.value = ""; if (f) onRestaurer(f); }} style={{ display: "none" }} />
+          </label>
+        )}
+        {onRestaurer && (
+          <div style={{ fontSize: 10, color: C.muted, marginBottom: 10, lineHeight: 1.4 }}>
+            Réintègre les données d'un fichier <b>.json</b> sans créer de doublons (utile après une erreur ou un changement de téléphone).
+          </div>
         )}
 
         {/* PARAMÈTRES */}
