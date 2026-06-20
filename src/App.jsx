@@ -729,7 +729,7 @@ export default function App() {
             style={{ background: "transparent", border: `1px solid ${C.border}`, color: C.muted, borderRadius: 6, padding: "4px 8px", cursor: "pointer", fontSize: 12 }}>
             🔍
           </button>
-          <button onClick={() => setCompteOuvert(true)} title="Mon compte"
+          <button onClick={() => setCompteOuvert(true)} title="Paramètres"
             style={{ background: "transparent", border: `1px solid ${C.border}`, color: C.muted, borderRadius: 6, padding: "4px 8px", cursor: "pointer", fontSize: 12 }}>
             ⚙️
           </button>
