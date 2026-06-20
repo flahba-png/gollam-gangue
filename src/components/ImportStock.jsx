@@ -154,6 +154,10 @@ export default function ImportStock({ produits, boutiqueId, onRefresh, onStatut,
               📂 Choisir un fichier
               <input type="file" accept=".xlsx,.xls,.csv" onChange={e => e.target.files[0] && lireFichier(e.target.files[0])} style={{ display: "none" }} />
             </label>
+            <a href="/modele-import-stock.xlsx" download
+              style={{ display: "block", textAlign: "center", marginTop: 12, fontSize: 12, color: C.blue, textDecoration: "none" }}>
+              ⬇️ Pas de fichier ? Télécharge le modèle Excel à remplir
+            </a>
           </div>
         ) : (
           <>
