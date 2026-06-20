@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { C, fmt, MODES_PAIEMENT, todayISO } from "../theme";
+import { C, fmt, MODES_PAIEMENT, todayISO, ageEnJours, SEUIL_RETARD } from "../theme";
 import { t } from "../i18n";
 
 const StatCard = ({ label, value, color, sub }) => (
@@ -34,8 +34,12 @@ const BarChart = ({ data, label }) => {
   );
 };
 
-export default function Dashboard({ kpi, historique, credits, produits, estPatron = true, onImprimer, onWhatsApp }) {
+export default function Dashboard({ kpi, historique, credits, produits, estPatron = true, onImprimer, onWhatsApp, onVoirCredits }) {
   const alertesStock = produits.filter(p => (p.stock || 0) <= 2);
+  const creancesEnRetard = useMemo(
+    () => credits.filter(c => (c.reste_a_payer || 0) > 0 && ageEnJours(c) >= SEUIL_RETARD),
+    [credits]
+  );
 
   // Jour consulté (défaut = aujourd'hui). Le Patron peut remonter dans le temps.
   const [dateSel, setDateSel] = useState(todayISO());
@@ -101,6 +105,17 @@ export default function Dashboard({ kpi, historique, credits, produits, estPatro
             style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 6, color: C.text, fontSize: 12, padding: "5px 8px" }} />
         </div>
       </div>
+
+      {/* ALERTE RELANCES : créances en retard */}
+      {estPatron && creancesEnRetard.length > 0 && (
+        <div onClick={onVoirCredits} style={{ background: C.red + "14", borderRadius: 10, border: `1px solid ${C.red}55`, padding: 12, marginBottom: 12, cursor: onVoirCredits ? "pointer" : "default", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ fontSize: 13, color: C.text }}>
+            ⏰ <b>{creancesEnRetard.length} client(s)</b> te doivent de l'argent depuis +{SEUIL_RETARD}j
+            <div style={{ fontSize: 11, color: C.red, fontWeight: "bold", marginTop: 2 }}>{fmt(creancesEnRetard.reduce((s, c) => s + (c.reste_a_payer || 0), 0))} F à récupérer</div>
+          </div>
+          <span style={{ color: C.red, fontSize: 18 }}>›</span>
+        </div>
+      )}
 
       {boutiqueVide && (
         <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.green}55`, padding: 18, marginBottom: 12 }}>

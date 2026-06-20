@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { C, fmt, heure, todayISO, envoyerWhatsApp, envoyerSMS } from "../theme";
+import React, { useState, useMemo } from "react";
+import { C, fmt, heure, todayISO, envoyerWhatsApp, envoyerSMS, ageEnJours, SEUIL_RETARD } from "../theme";
 import { t } from "../i18n";
 import { supabase } from "../supabase";
 
@@ -17,6 +17,23 @@ export default function Credits({ credits, kpi, boutiqueId, onRefresh, onStatut,
   const relancerSMS = (c) => envoyerSMS(c.client_phone, messageRelance(c));
 
   const [montantsRembours, setMontantsRembours] = useState({});
+
+  // Créances en retard (impayées depuis +SEUIL_RETARD jours), triées par ancienneté
+  const enRetard = useMemo(
+    () => credits
+      .filter(c => (c.reste_a_payer || 0) > 0 && ageEnJours(c) >= SEUIL_RETARD)
+      .sort((a, b) => ageEnJours(b) - ageEnJours(a)),
+    [credits]
+  );
+  const totalRetard = enRetard.reduce((s, c) => s + (c.reste_a_payer || 0), 0);
+
+  // Relance groupée : ouvre une fenêtre WhatsApp par client en retard (avec numéro)
+  const relancerTous = () => {
+    const avecTel = enRetard.filter(c => c.client_phone);
+    if (avecTel.length === 0) { onStatut("⚠️ Aucun client en retard n'a de numéro enregistré."); return; }
+    avecTel.forEach((c, i) => setTimeout(() => envoyerWhatsApp(c.client_phone, messageRelance(c)), i * 600));
+    onStatut(`💬 ${avecTel.length} relance(s) WhatsApp ouverte(s).`);
+  };
 
   const encaisserCredit = async (creditId) => {
     const fiche = credits.find(c => c.id === creditId);
@@ -52,6 +69,31 @@ export default function Credits({ credits, kpi, boutiqueId, onRefresh, onStatut,
 
   return (
     <div style={{ padding: "0 12px 12px" }}>
+      {/* RELANCES AUTOMATIQUES : clients en retard */}
+      {enRetard.length > 0 && (
+        <div style={{ background: C.red + "14", borderRadius: 8, border: `1px solid ${C.red}55`, padding: 14, marginBottom: 12 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+            <div style={{ color: C.red, fontWeight: "bold", fontSize: 13 }}>
+              ⏰ {enRetard.length} client(s) en retard (+{SEUIL_RETARD}j)
+            </div>
+            <span style={{ color: C.red, fontWeight: "bold", fontSize: 12 }}>{fmt(totalRetard)} F</span>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 10 }}>
+            {enRetard.slice(0, 4).map(c => (
+              <div key={c.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
+                <span style={{ color: C.text }}>{c.client} <span style={{ color: C.muted }}>· {ageEnJours(c)}j</span></span>
+                <span style={{ color: C.red, fontWeight: "bold" }}>{fmt(c.reste_a_payer)} F</span>
+              </div>
+            ))}
+            {enRetard.length > 4 && <div style={{ fontSize: 11, color: C.muted, fontStyle: "italic" }}>… +{enRetard.length - 4} autres</div>}
+          </div>
+          <button onClick={relancerTous}
+            style={{ width: "100%", padding: 9, background: "#25D366", color: "#fff", border: "none", borderRadius: 8, fontWeight: "bold", fontSize: 13, cursor: "pointer" }}>
+            💬 Relancer tous les retards par WhatsApp
+          </button>
+        </div>
+      )}
+
       <div style={{ background: C.surface, borderRadius: 8, border: `1px solid ${C.yellow}55`, padding: 14 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
           <div style={{ color: C.yellow, fontWeight: "bold", fontSize: 13 }}>📒 {t("carnet_credits").toUpperCase()}</div>
@@ -79,6 +121,11 @@ export default function Credits({ credits, kpi, boutiqueId, onRefresh, onStatut,
                       Reste : {fmt(c.reste_a_payer)} F
                     </span>
                     {c.date && <div style={{ fontSize: 9, color: C.muted, marginTop: 4 }}>{c.date}</div>}
+                    {(c.reste_a_payer || 0) > 0 && ageEnJours(c) >= SEUIL_RETARD && (
+                      <div style={{ marginTop: 4, display: "inline-block", background: C.red + "22", color: C.red, border: `1px solid ${C.red}55`, borderRadius: 10, padding: "1px 7px", fontSize: 9, fontWeight: "bold" }}>
+                        ⏰ {ageEnJours(c)}j de retard
+                      </div>
+                    )}
                   </div>
                 </div>
 

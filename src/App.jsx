@@ -19,6 +19,7 @@ import Inventaire from "./components/Inventaire";
 import Paywall from "./components/Paywall";
 import Admin from "./components/Admin";
 import Compte from "./components/Compte";
+import RechercheGlobale from "./components/RechercheGlobale";
 import Onboarding, { onboardingVu } from "./components/Onboarding";
 import Documents from "./components/Documents";
 import Chat from "./components/Chat";
@@ -52,6 +53,7 @@ export default function App() {
   const [nouveauMdp, setNouveauMdp] = useState("");
   const [voirMdp, setVoirMdp] = useState(false);
   const [compteOuvert, setCompteOuvert] = useState(false);
+  const [rechercheOuverte, setRechercheOuverte] = useState(false);
   const [montrerOnboarding, setMontrerOnboarding] = useState(!onboardingVu());
   const [theme, setTheme] = useState(themeActuel());
   const [langue, setLangueState] = useState(langueActuelle());
@@ -629,12 +631,21 @@ export default function App() {
               </div>
             </>
           )}
+          <button onClick={() => setRechercheOuverte(true)} title="Recherche globale"
+            style={{ background: "transparent", border: `1px solid ${C.border}`, color: C.muted, borderRadius: 6, padding: "4px 8px", cursor: "pointer", fontSize: 12 }}>
+            🔍
+          </button>
           <button onClick={() => setCompteOuvert(true)} title="Mon compte"
             style={{ background: "transparent", border: `1px solid ${C.border}`, color: C.muted, borderRadius: 6, padding: "4px 8px", cursor: "pointer", fontSize: 12 }}>
             ⚙️
           </button>
         </div>
       </div>
+
+      {rechercheOuverte && (
+        <RechercheGlobale produits={produits} credits={credits} historique={historique}
+          onNaviguer={(o) => setOnglet(o)} onClose={() => setRechercheOuverte(false)} />
+      )}
 
       {compteOuvert && (
         <Compte email={session.user.email} onClose={() => setCompteOuvert(false)}
@@ -680,7 +691,7 @@ export default function App() {
       })()}
 
       <div key={onglet} className="tab-content" style={{ paddingTop: 12, paddingBottom: 70 }}>
-        {onglet === "dashboard" && <Dashboard kpi={kpi} historique={historique} credits={credits} produits={produits} estPatron={peutVoirBenefice} onImprimer={h => imprimerFacture(h, boutique)} onWhatsApp={h => envoyerRecuWhatsApp(h, boutique)} />}
+        {onglet === "dashboard" && <Dashboard kpi={kpi} historique={historique} credits={credits} produits={produits} estPatron={peutVoirBenefice} onImprimer={h => imprimerFacture(h, boutique)} onWhatsApp={h => envoyerRecuWhatsApp(h, boutique)} onVoirCredits={() => setOnglet("credits")} />}
         {onglet === "saisie" && (
           <div style={{ padding: "0 12px 12px" }}>
             {vueGlobale ? (
@@ -704,7 +715,7 @@ export default function App() {
           )
         )}
         {onglet === "historique" && <Historique historique={historique} produits={produits} boutiqueId={boutiqueActive?.id} onRefresh={chargerDonnees} onImprimer={h => imprimerFacture(h, boutique)} onWhatsApp={h => envoyerRecuWhatsApp(h, boutique)} onRetour={effectuerRetour} voirBenefice={peutVoirBenefice} peutRetourner={perms.vente_modifier || estPatron} peutModifier={perms.vente_modifier || estPatron} onSupprimer={supprimerMouvement} />}
-        {onglet === "stock" && <Stock produits={produits} boutiqueId={boutiqueActive?.id} onRefresh={chargerDonnees} fournisseurs={fournisseurs} onTransfer={!vueGlobale && boutiques.length > 1 ? () => setOnglet("transferts") : null} voirPrixAchat={perms.prix_achat_voir} peutModifier={perms.stock_modifier || estPatron} onAudit={loggerModif} />}
+        {onglet === "stock" && <Stock produits={produits} boutiqueId={boutiqueActive?.id} onRefresh={chargerDonnees} fournisseurs={fournisseurs} onTransfer={!vueGlobale && boutiques.length > 1 ? () => setOnglet("transferts") : null} voirPrixAchat={perms.prix_achat_voir} peutModifier={perms.stock_modifier || estPatron} onAudit={loggerModif} onStatut={setStatut} />}
         {onglet === "fournisseurs" && estPatron && (
           vueGlobale ? (
             <div style={{ padding: "0 12px" }}>

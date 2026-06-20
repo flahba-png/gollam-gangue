@@ -3,13 +3,15 @@ import { C, fmt } from "../theme";
 import { t } from "../i18n";
 import { supabase } from "../supabase";
 import Scanner from "./Scanner";
+import ImportStock from "./ImportStock";
 
-export default function Stock({ produits, boutiqueId, onRefresh, fournisseurs = [], onTransfer, voirPrixAchat = true, peutModifier = true, onAudit }) {
+export default function Stock({ produits, boutiqueId, onRefresh, fournisseurs = [], onTransfer, voirPrixAchat = true, peutModifier = true, onAudit, onStatut }) {
   const [recherche, setRecherche] = useState("");
   const [editId, setEditId] = useState(null);
   const [editData, setEditData] = useState({});
   const [sauvegarde, setSauvegarde] = useState(false);
   const [scanOuvert, setScanOuvert] = useState(false);
+  const [importOuvert, setImportOuvert] = useState(false);
 
   const produitsFiltres = produits.filter(p => {
     if (!recherche) return true;
@@ -59,6 +61,17 @@ export default function Stock({ produits, boutiqueId, onRefresh, fournisseurs = 
   return (
     <div style={{ padding: "0 12px 12px" }}>
       {scanOuvert && <Scanner onScan={(code) => { setScanOuvert(false); setEditData(d => ({ ...d, codeBarre: code })); }} onClose={() => setScanOuvert(false)} />}
+      {importOuvert && (
+        <ImportStock produits={produits} boutiqueId={boutiqueId} onRefresh={onRefresh}
+          onStatut={onStatut || (() => {})} onClose={() => setImportOuvert(false)} />
+      )}
+
+      {peutModifier && (
+        <button onClick={() => setImportOuvert(true)}
+          style={{ width: "100%", padding: 11, marginBottom: 10, background: C.green + "18", color: C.green, border: `1px solid ${C.green}44`, borderRadius: 8, fontWeight: "bold", fontSize: 13, cursor: "pointer" }}>
+          📥 Importer depuis Excel / CSV
+        </button>
+      )}
 
       {onTransfer && (
         <button onClick={onTransfer}

@@ -37,6 +37,21 @@ export const today = () => new Date().toLocaleDateString("fr-FR");
 export const todayISO = () => new Date().toISOString().split("T")[0];
 export const heure = () => new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
 
+// Seuil (en jours) au-delà duquel une créance est considérée "en retard"
+export const SEUIL_RETARD = 30;
+
+// Âge en jours d'un enregistrement : priorité à created_at, sinon date fr (jj/mm/aaaa)
+export const ageEnJours = (rec) => {
+  let d = null;
+  if (rec?.created_at) d = new Date(rec.created_at);
+  else if (rec?.date && /^\d{2}\/\d{2}\/\d{4}$/.test(rec.date)) {
+    const [j, m, a] = rec.date.split("/");
+    d = new Date(`${a}-${m}-${j}T12:00:00`);
+  }
+  if (!d || isNaN(d.getTime())) return 0;
+  return Math.max(0, Math.floor((Date.now() - d.getTime()) / 86400000));
+};
+
 // ==========================================
 // MODES DE PAIEMENT (Côte d'Ivoire)
 // ==========================================
