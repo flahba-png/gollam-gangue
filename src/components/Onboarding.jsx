@@ -5,7 +5,7 @@ import { t } from "../i18n";
 const KEY = "gangue_onboarding_vu";
 
 const ETAPES = [
-  { emoji: "👋", titre: "Bienvenue sur Gangué !", texte: "Ton assistant pour gérer ta boutique : ventes, stock, crédits, employés — le tout depuis ton téléphone." },
+  { emoji: "👋", titre: "Bienvenue sur Gollam !", texte: "Ton assistant pour gérer ta boutique : ventes, stock, crédits, employés — le tout depuis ton téléphone." },
   { emoji: "➕", titre: "Enregistre une vente", texte: "Va dans l'onglet « Saisie ». Ajoute tes produits au panier, choisis le mode de paiement, et valide. Un reçu est prêt à envoyer par WhatsApp." },
   { emoji: "📦", titre: "Gère ton stock", texte: "Onglet « Stock » : ajoute tes produits avec prix d'achat, prix de vente et quantité. L'app t'alerte quand un stock est bas." },
   { emoji: "📊", titre: "Pilote ton commerce", texte: "L'Accueil et les Stats te montrent ton bénéfice réel, tes meilleurs produits et l'argent qui dort. Tout en temps réel." },

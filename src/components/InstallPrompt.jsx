@@ -59,7 +59,7 @@ export default function InstallPrompt() {
       <div style={{ background: C.surface, border: `1px solid ${C.green}66`, borderRadius: 12, padding: "10px 12px", display: "flex", alignItems: "center", gap: 10, boxShadow: "0 8px 28px rgba(0,0,0,0.45)" }}>
         <div style={{ fontSize: 26 }}>📲</div>
         <div style={{ flex: 1 }}>
-          <div style={{ color: C.text, fontSize: 13, fontWeight: "bold" }}>Installer Gangué</div>
+          <div style={{ color: C.text, fontSize: 13, fontWeight: "bold" }}>Installer Gollam</div>
           <div style={{ color: C.muted, fontSize: 11, marginTop: 1 }}>
             {estIOS
               ? "Appuie sur Partager ⬆️ puis « Sur l'écran d'accueil »"

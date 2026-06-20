@@ -10,8 +10,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.png', 'apple-touch-icon.png', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png'],
       manifest: {
-        name: 'Gangué Platform',
-        short_name: 'Gangué',
+        name: 'Gollam Platform',
+        short_name: 'Gollam',
         description: 'Gestion commerciale multi-boutiques — Côte d\'Ivoire',
         theme_color: '#0C1016',
         background_color: '#0C1016',

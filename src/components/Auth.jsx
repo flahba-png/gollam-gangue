@@ -75,7 +75,7 @@ export default function Auth() {
         {/* LOGO */}
         <div style={{ textAlign: "center", marginBottom: 32 }}>
           <div style={{ fontSize: 32, marginBottom: 8 }}>🔧</div>
-          <div style={{ fontSize: 22, fontWeight: "bold", color: C.green }}>Gangué Platform</div>
+          <div style={{ fontSize: 22, fontWeight: "bold", color: C.green }}>Gollam Platform</div>
           <div style={{ fontSize: 12, color: C.muted, marginTop: 4 }}>Gestion commerciale · Côte d'Ivoire</div>
         </div>
 

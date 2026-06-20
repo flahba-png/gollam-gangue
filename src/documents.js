@@ -67,7 +67,7 @@ export const imprimerDocument = (doc, boutique) => {
     ${totaux}
     ${doc.notes ? `<div class="notes"><b>Notes :</b> ${doc.notes}</div>` : ""}
     ${doc.type === "devis" ? '<div class="notes">Ce devis est valable sous réserve de disponibilité des articles. Bon pour accord : __________</div>' : ""}
-    <div class="foot">Merci pour votre confiance — ${boutique?.nom || "Gangué"}</div>
+    <div class="foot">Merci pour votre confiance — ${boutique?.nom || "Gollam"}</div>
   </body></html>`);
   w.document.close();
   setTimeout(() => { w.focus(); w.print(); }, 400);

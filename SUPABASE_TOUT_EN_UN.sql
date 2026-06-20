@@ -439,4 +439,8 @@ alter table boutiques add column if not exists fidelite_seuil integer default 10
 alter table boutiques add column if not exists fidelite_palier integer default 10;        -- points requis pour une récompense
 alter table boutiques add column if not exists fidelite_valeur integer default 1000;      -- valeur (F) de la récompense
 
+-- ========== MIGRATION 24 : caméras de surveillance (multi-flux par boutique) ==========
+-- Liste de caméras [{ nom, url }] stockée sur la boutique (HLS/M3U8 lisible en navigateur).
+alter table boutiques add column if not exists cameras jsonb default '[]'::jsonb;
+
 -- ✅ Terminé. Toutes les tables, colonnes et règles de sécurité sont en place.

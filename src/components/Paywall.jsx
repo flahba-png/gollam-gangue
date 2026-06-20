@@ -8,7 +8,7 @@ export default function Paywall({ abonnement, nomBoutique, email, onDeconnexion 
   const demander = () => {
     const msg =
       `Bonjour 👋\n\n` +
-      `Je souhaite m'abonner à Gangué Platform.\n` +
+      `Je souhaite m'abonner à Gollam Platform.\n` +
       `Boutique : ${nomBoutique || "—"}\n` +
       `Email : ${email || "—"}\n` +
       `Montant : ${fmt(PRIX_ABONNEMENT)}/mois\n\n` +

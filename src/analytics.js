@@ -189,7 +189,7 @@ export const exporterAnalysePDF = (data, boutique) => {
     <table><tr><th>#</th><th>Produit</th><th style="text-align:right">Unités</th><th style="text-align:right">CA</th><th style="text-align:right">Marge nette</th></tr>${ligneProduit || '<tr><td colspan="5">Aucune vente.</td></tr>'}</table>
     <h2>💤 Stocks dormants — capital bloqué : ${fmt(capitalDormantTotal)}</h2>
     <table><tr><th>Produit</th><th style="text-align:right">Stock</th><th style="text-align:right">Capital bloqué</th></tr>${ligneDormant || '<tr><td colspan="3">Aucun stock dormant. 👍</td></tr>'}</table>
-    <div class="f">Généré par Gangué Platform</div>
+    <div class="f">Généré par Gollam Platform</div>
   </body></html>`);
   w.document.close();
   setTimeout(() => { w.focus(); w.print(); }, 400);

@@ -34,7 +34,7 @@ const BarChart = ({ data, label }) => {
   );
 };
 
-export default function Dashboard({ kpi, historique, credits, produits, estPatron = true, onImprimer, onWhatsApp, onVoirCredits }) {
+export default function Dashboard({ kpi, historique, credits, produits, estPatron = true, onImprimer, onWhatsApp, onVoirCredits, cameras = [], peutGererCameras = false, onSurveillance }) {
   const alertesStock = produits.filter(p => (p.stock || 0) <= 2);
   const creancesEnRetard = useMemo(
     () => credits.filter(c => (c.reste_a_payer || 0) > 0 && ageEnJours(c) >= SEUIL_RETARD),
@@ -105,6 +105,14 @@ export default function Dashboard({ kpi, historique, credits, produits, estPatro
             style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 6, color: C.text, fontSize: 12, padding: "5px 8px" }} />
         </div>
       </div>
+
+      {/* SURVEILLANCE : direct caméra boutique (patron/gérant) */}
+      {onSurveillance && (cameras.length > 0 || peutGererCameras) && (
+        <button onClick={onSurveillance}
+          style={{ width: "100%", padding: 11, marginBottom: 12, background: C.blue + "18", color: C.blue, border: `1px solid ${C.blue}44`, borderRadius: 10, fontWeight: "bold", fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+          👁️ Voir le direct boutique {cameras.length > 0 ? `(${cameras.length} caméra${cameras.length > 1 ? "s" : ""})` : "— configurer"}
+        </button>
+      )}
 
       {/* ALERTE RELANCES : créances en retard */}
       {estPatron && creancesEnRetard.length > 0 && (

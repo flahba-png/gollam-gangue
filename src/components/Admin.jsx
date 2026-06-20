@@ -41,7 +41,7 @@ export default function Admin({ onStatut }) {
     return j <= 3 ? C.red : j <= 7 ? C.yellow : C.green;
   };
 
-  const relancer = (a) => envoyerWhatsApp(a.telephone, `Bonjour ${a.nom || ""} 👋\nVotre abonnement Gangué arrive à échéance. Pensez à renouveler (${fmt(PRIX_ABONNEMENT)}/mois) pour continuer sans interruption. 🙏`);
+  const relancer = (a) => envoyerWhatsApp(a.telephone, `Bonjour ${a.nom || ""} 👋\nVotre abonnement Gollam arrive à échéance. Pensez à renouveler (${fmt(PRIX_ABONNEMENT)}/mois) pour continuer sans interruption. 🙏`);
 
   const filtres = abos
     .filter(a => !recherche || (a.nom || "").toLowerCase().includes(recherche.toLowerCase()) || (a.email || "").toLowerCase().includes(recherche.toLowerCase()))

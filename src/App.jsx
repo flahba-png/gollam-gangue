@@ -20,6 +20,7 @@ import Paywall from "./components/Paywall";
 import Admin from "./components/Admin";
 import Compte from "./components/Compte";
 import RechercheGlobale from "./components/RechercheGlobale";
+import Surveillance from "./components/Surveillance";
 import Onboarding, { onboardingVu } from "./components/Onboarding";
 import Documents from "./components/Documents";
 import Chat from "./components/Chat";
@@ -54,6 +55,7 @@ export default function App() {
   const [voirMdp, setVoirMdp] = useState(false);
   const [compteOuvert, setCompteOuvert] = useState(false);
   const [rechercheOuverte, setRechercheOuverte] = useState(false);
+  const [surveillanceOuverte, setSurveillanceOuverte] = useState(false);
   const [montrerOnboarding, setMontrerOnboarding] = useState(!onboardingVu());
   const [theme, setTheme] = useState(themeActuel());
   const [langue, setLangueState] = useState(langueActuelle());
@@ -94,7 +96,7 @@ export default function App() {
       data = JSON.parse(await fichier.text());
     } catch { setStatut("❌ Fichier illisible (JSON invalide)."); return; }
     if (!data || !Array.isArray(data.boutiques) || !Array.isArray(data.produits)) {
-      setStatut("❌ Ce n'est pas une sauvegarde Gangué valide."); return;
+      setStatut("❌ Ce n'est pas une sauvegarde Gollam valide."); return;
     }
     setStatut("⏳ Restauration en cours...");
     const norm = (s) => String(s || "").trim().toLowerCase();
@@ -180,7 +182,7 @@ export default function App() {
   // Demande d'abonnement par WhatsApp (depuis le bandeau de rappel)
   const demanderAbonnement = () => {
     envoyerWhatsApp(ADMIN_WHATSAPP,
-      `Bonjour 👋\nJe veux m'abonner à Gangué Platform (${fmt(PRIX_ABONNEMENT)}/mois).\nEmail : ${session?.user?.email || ""}`);
+      `Bonjour 👋\nJe veux m'abonner à Gollam Platform (${fmt(PRIX_ABONNEMENT)}/mois).\nEmail : ${session?.user?.email || ""}`);
   };
   const [kpi, setKpi] = useState({ ca: 0, depenses: 0, benefice: 0, dettes: 0, margeTotal: 0 });
 
@@ -694,7 +696,7 @@ export default function App() {
 
       <div style={{ background: "rgba(22,28,36,0.82)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", padding: "12px 16px", borderBottom: `1px solid ${C.border}`, position: "sticky", top: 0, zIndex: 100, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div>
-          <div style={{ fontSize: 15, fontWeight: "bold", color: C.green }}>Gangué</div>
+          <div style={{ fontSize: 15, fontWeight: "bold", color: C.green }}>Gollam</div>
           <div style={{ fontSize: 10, color: C.muted }}>Gestion Commerciale</div>
         </div>
         <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
@@ -737,6 +739,11 @@ export default function App() {
       {rechercheOuverte && (
         <RechercheGlobale produits={produits} credits={credits} historique={historique}
           onNaviguer={(o) => setOnglet(o)} onClose={() => setRechercheOuverte(false)} />
+      )}
+
+      {surveillanceOuverte && !vueGlobale && boutiqueActive && (
+        <Surveillance boutiqueActive={boutiqueActive} estPatron={estPatron}
+          onRefresh={chargerDonnees} onClose={() => setSurveillanceOuverte(false)} />
       )}
 
       {compteOuvert && (
@@ -785,7 +792,7 @@ export default function App() {
       })()}
 
       <div key={onglet} className="tab-content" style={{ paddingTop: 12, paddingBottom: 70 }}>
-        {onglet === "dashboard" && <Dashboard kpi={kpi} historique={historique} credits={credits} produits={produits} estPatron={peutVoirBenefice} onImprimer={h => imprimerFacture(h, boutique)} onWhatsApp={h => envoyerRecuWhatsApp(h, boutique)} onVoirCredits={() => setOnglet("credits")} />}
+        {onglet === "dashboard" && <Dashboard kpi={kpi} historique={historique} credits={credits} produits={produits} estPatron={peutVoirBenefice} onImprimer={h => imprimerFacture(h, boutique)} onWhatsApp={h => envoyerRecuWhatsApp(h, boutique)} onVoirCredits={() => setOnglet("credits")} cameras={(!vueGlobale && boutiqueActive?.cameras) || []} peutGererCameras={estPatron && !vueGlobale} onSurveillance={() => setSurveillanceOuverte(true)} />}
         {onglet === "saisie" && (
           <div style={{ padding: "0 12px 12px" }}>
             {vueGlobale ? (
