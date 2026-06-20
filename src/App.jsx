@@ -757,7 +757,8 @@ export default function App() {
           proprietaireId={session.user.id} estPatron={estPatron}
           onSelectBoutique={(b) => { setBoutiqueActive(b); setVueGlobale(false); }}
           onGlobale={() => { setVueGlobale(true); if (onglet === "saisie") setOnglet("dashboard"); }}
-          onBoutiqueCreated={(b) => { setBoutiques(prev => [...prev, b]); setBoutiqueActive(b); setVueGlobale(false); }} />
+          onBoutiqueCreated={(b) => { setBoutiques(prev => [...prev, b]); setBoutiqueActive(b); setVueGlobale(false); }}
+          onBoutiqueUpdated={(b) => { setBoutiques(prev => prev.map(x => x.id === b.id ? b : x)); setBoutiqueActive(prev => prev?.id === b.id ? b : prev); }} />
       )}
 
       {/* RAPPEL FIN D'ESSAI (≤ 3 jours) */}

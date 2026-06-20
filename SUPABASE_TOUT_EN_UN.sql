@@ -443,4 +443,8 @@ alter table boutiques add column if not exists fidelite_valeur integer default 1
 -- Liste de caméras [{ nom, url }] stockée sur la boutique (HLS/M3U8 lisible en navigateur).
 alter table boutiques add column if not exists cameras jsonb default '[]'::jsonb;
 
+-- ========== MIGRATION 25 : logo propre à chaque boutique (reçus/factures) ==========
+-- Stocké en data URL (image redimensionnée côté app) → reçus white-label.
+alter table boutiques add column if not exists logo text;
+
 -- ✅ Terminé. Toutes les tables, colonnes et règles de sécurité sont en place.

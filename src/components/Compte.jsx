@@ -7,7 +7,41 @@ import BoutiqueSwitcher from "./BoutiqueSwitcher";
 // Écran "Mon compte" : boutiques, email, changer mot de passe, déconnexion
 export default function Compte({ email, onClose, onLogout, onStatut, onExport, onRestaurer, theme = "sombre", onTheme, langue = "fr", onLangue,
   devise = "XOF", onDevise,
-  boutiques = [], boutiqueActive, vueGlobale, proprietaireId, estPatron, onSelectBoutique, onGlobale, onBoutiqueCreated }) {
+  boutiques = [], boutiqueActive, vueGlobale, proprietaireId, estPatron, onSelectBoutique, onGlobale, onBoutiqueCreated, onBoutiqueUpdated }) {
+  const [logoEnCours, setLogoEnCours] = useState(false);
+
+  // Logo de la boutique pour ses reçus/factures : on redimensionne avant de stocker
+  const changerLogo = (file) => {
+    if (!file || !boutiqueActive) return;
+    setLogoEnCours(true);
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = async () => {
+        const max = 240;
+        const ratio = Math.min(max / img.width, max / img.height, 1);
+        const cv = document.createElement("canvas");
+        cv.width = Math.round(img.width * ratio);
+        cv.height = Math.round(img.height * ratio);
+        cv.getContext("2d").drawImage(img, 0, 0, cv.width, cv.height);
+        const dataUrl = cv.toDataURL("image/png");
+        const { error } = await supabase.from("boutiques").update({ logo: dataUrl }).eq("id", boutiqueActive.id);
+        setLogoEnCours(false);
+        if (error) { onStatut("❌ " + error.message); return; }
+        onBoutiqueUpdated && onBoutiqueUpdated({ ...boutiqueActive, logo: dataUrl });
+        onStatut("✅ Logo de la boutique mis à jour.");
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const retirerLogo = async () => {
+    if (!boutiqueActive) return;
+    await supabase.from("boutiques").update({ logo: null }).eq("id", boutiqueActive.id);
+    onBoutiqueUpdated && onBoutiqueUpdated({ ...boutiqueActive, logo: null });
+    onStatut("Logo retiré.");
+  };
   const [nouveau, setNouveau] = useState("");
   const [voir, setVoir] = useState(false);
   const [enCours, setEnCours] = useState(false);
@@ -60,6 +94,33 @@ export default function Compte({ email, onClose, onLogout, onStatut, onExport, o
               onSelect={(b) => { onSelectBoutique(b); }}
               onGlobale={onGlobale}
               onCreated={onBoutiqueCreated} />
+
+            {/* LOGO DE LA BOUTIQUE (reçus/factures) — patron */}
+            {estPatron && !vueGlobale && boutiqueActive && (
+              <div style={{ marginTop: 10, background: C.surface2, borderRadius: 8, border: `1px solid ${C.border}`, padding: 10 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <div style={{ width: 48, height: 48, borderRadius: 8, background: C.bg, border: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", flexShrink: 0 }}>
+                    {boutiqueActive.logo
+                      ? <img src={boutiqueActive.logo} alt="logo" style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} />
+                      : <span style={{ color: C.muted, fontSize: 18, fontWeight: "bold" }}>{(boutiqueActive.nom || "?").charAt(0).toUpperCase()}</span>}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ color: C.text, fontSize: 12, fontWeight: "bold" }}>Logo de la boutique</div>
+                    <div style={{ color: C.muted, fontSize: 10 }}>Apparaît sur les reçus et factures de cette boutique.</div>
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+                  <label style={{ flex: 1, textAlign: "center", padding: "7px 0", background: C.green + "18", color: C.green, border: `1px solid ${C.green}44`, borderRadius: 6, fontSize: 12, fontWeight: "bold", cursor: "pointer" }}>
+                    {logoEnCours ? "..." : (boutiqueActive.logo ? "Changer" : "📷 Ajouter un logo")}
+                    <input type="file" accept="image/*" onChange={e => { const f = e.target.files[0]; e.target.value = ""; changerLogo(f); }} style={{ display: "none" }} />
+                  </label>
+                  {boutiqueActive.logo && (
+                    <button onClick={retirerLogo}
+                      style={{ padding: "7px 12px", background: C.red + "18", color: C.red, border: `1px solid ${C.red}44`, borderRadius: 6, fontSize: 12, cursor: "pointer" }}>Retirer</button>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         )}
 

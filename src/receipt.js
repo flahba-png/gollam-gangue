@@ -7,7 +7,7 @@ export const genererTexteRecu = (log, boutique) => {
   const num = (log.id ?? "").toString().slice(-6).toUpperCase();
 
   const lignes = [
-    `*${(boutique?.nom || "GANGUÉ").toUpperCase()}*`,
+    `*${(boutique?.nom || "GOLLAM").toUpperCase()}*`,
     boutique?.ville ? `${boutique.ville} — Côte d'Ivoire` : "Côte d'Ivoire",
     `🧾 Reçu N° ${num}`,
     `📅 ${today()} à ${log.heure}`,
@@ -68,7 +68,7 @@ export const imprimerFacture = (log, boutique) => {
     .tot{font-size:13px;font-weight:bold;text-align:right;margin-top:8px}
     .f{text-align:center;margin-top:14px;font-size:9px;border-top:1px dashed #000;padding-top:6px}
   </style></head><body>
-    <div class="h"><div class="logo">${(boutique?.nom || "G").charAt(0).toUpperCase()}</div><div class="t">${(boutique?.nom || "GANGUÉ").toUpperCase()}</div>
+    <div class="h">${boutique?.logo ? `<img src="${boutique.logo}" alt="logo" style="max-width:120px;max-height:60px;object-fit:contain;margin:0 auto 6px;display:block" />` : `<div class="logo">${(boutique?.nom || "G").charAt(0).toUpperCase()}</div>`}<div class="t">${(boutique?.nom || "GOLLAM").toUpperCase()}</div>
     <div class="i">Pièces Auto & Moto — ${boutique?.ville || "Côte d'Ivoire"}</div>
     <div class="i">${today()} à ${log.heure}</div>
     <div class="i">Reçu N° ${(log.id ?? "").toString().slice(-6).toUpperCase()}</div></div>

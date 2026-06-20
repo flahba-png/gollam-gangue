@@ -51,7 +51,7 @@ export const imprimerDocument = (doc, boutique) => {
     .foot{margin-top:30px;text-align:center;font-size:11px;color:#999;border-top:1px solid #ddd;padding-top:12px}
   </style></head><body>
     <div class="top">
-      <div><div class="logo">${(boutique?.nom || "G").charAt(0).toUpperCase()}</div>
+      <div>${boutique?.logo ? `<img src="${boutique.logo}" alt="logo" style="max-width:140px;max-height:64px;object-fit:contain;float:left;margin-right:12px" />` : `<div class="logo">${(boutique?.nom || "G").charAt(0).toUpperCase()}</div>`}
         <div class="bn">${boutique?.nom || "Ma Boutique"}</div>
         <div class="bv">${boutique?.ville || "Côte d'Ivoire"}</div></div>
       <div class="doc"><div class="t">${titre}</div><div class="n">N° ${doc.numero || "—"}<br>Date : ${doc.date || today()}
