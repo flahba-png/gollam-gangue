@@ -696,8 +696,8 @@ export default function App() {
 
       <div style={{ background: "rgba(22,28,36,0.82)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", padding: "12px 16px", borderBottom: `1px solid ${C.border}`, position: "sticky", top: 0, zIndex: 100, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div>
-          <img src="/logo-gollam.png" alt="Gollam" style={{ height: 26, objectFit: "contain", display: "block" }} />
-          <div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>Gestion Commerciale</div>
+          <div style={{ fontSize: 15, fontWeight: "bold", color: C.green }}>Gollam</div>
+          <div style={{ fontSize: 10, color: C.muted }}>Gestion Commerciale</div>
         </div>
         <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
           {enAttente > 0 && (
@@ -729,7 +729,7 @@ export default function App() {
             style={{ background: "transparent", border: `1px solid ${C.border}`, color: C.muted, borderRadius: 6, padding: "4px 8px", cursor: "pointer", fontSize: 12 }}>
             🔍
           </button>
-          <button onClick={() => setCompteOuvert(true)} title="Paramètres"
+          <button onClick={() => setCompteOuvert(true)} title="Mon compte"
             style={{ background: "transparent", border: `1px solid ${C.border}`, color: C.muted, borderRadius: 6, padding: "4px 8px", cursor: "pointer", fontSize: 12 }}>
             ⚙️
           </button>

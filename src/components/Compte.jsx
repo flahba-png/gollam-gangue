@@ -80,7 +80,7 @@ export default function Compte({ email, onClose, onLogout, onStatut, onExport, o
       onClick={onClose}>
       <div onClick={e => e.stopPropagation()} style={{ width: "100%", maxWidth: 380, background: C.surface, borderRadius: 14, border: `1px solid ${C.border}`, padding: 20, margin: "auto" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-          <div style={{ fontSize: 16, fontWeight: "bold", color: C.text }}>⚙️ Paramètres</div>
+          <div style={{ fontSize: 16, fontWeight: "bold", color: C.text }}>⚙️ Mon compte</div>
           <button onClick={onClose} style={{ background: "transparent", border: "none", color: C.muted, fontSize: 18, cursor: "pointer" }}>✕</button>
         </div>
 
@@ -161,7 +161,7 @@ export default function Compte({ email, onClose, onLogout, onStatut, onExport, o
         )}
 
         {/* PARAMÈTRES */}
-        <div style={{ fontSize: 11, color: C.muted, fontWeight: "bold", marginBottom: 8 }}>🎨 PRÉFÉRENCES</div>
+        <div style={{ fontSize: 11, color: C.muted, fontWeight: "bold", marginBottom: 8 }}>⚙️ PARAMÈTRES</div>
         <a href="/aide.html" target="_blank" rel="noopener"
           style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "11px 12px", background: C.surface2, borderRadius: 8, marginBottom: 8, color: C.text, fontSize: 13, textDecoration: "none" }}>
           <span>❓ Aide & FAQ</span><span style={{ color: C.muted }}>›</span>
