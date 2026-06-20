@@ -74,8 +74,7 @@ export default function Auth() {
       <div style={{ width: "100%", maxWidth: 400 }}>
         {/* LOGO */}
         <div style={{ textAlign: "center", marginBottom: 32 }}>
-          <div style={{ fontSize: 32, marginBottom: 8 }}>🔧</div>
-          <div style={{ fontSize: 22, fontWeight: "bold", color: C.green }}>Gollam Platform</div>
+          <img src="/logo-gollam.png" alt="Gollam" style={{ height: 70, marginBottom: 8, objectFit: "contain" }} />
           <div style={{ fontSize: 12, color: C.muted, marginTop: 4 }}>Gestion commerciale · Côte d'Ivoire</div>
         </div>
 
