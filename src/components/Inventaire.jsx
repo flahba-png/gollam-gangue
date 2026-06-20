@@ -93,7 +93,7 @@ export default function Inventaire({ produits, boutiqueActive, monNom, onRefresh
         </div>
         <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 10 }}>
           <span style={{ color: C.muted }}>Impact valeur stock</span>
-          <span style={{ color: valeurEcart < 0 ? C.red : C.green, fontWeight: "bold" }}>{valeurEcart > 0 ? "+" : ""}{fmt(valeurEcart)} F</span>
+          <span style={{ color: valeurEcart < 0 ? C.red : C.green, fontWeight: "bold" }}>{valeurEcart > 0 ? "+" : ""}{fmt(valeurEcart)}</span>
         </div>
         <button onClick={valider} disabled={enCours || ajustements.length === 0}
           style={{ width: "100%", padding: 12, background: (enCours || ajustements.length === 0) ? C.muted : C.green, color: C.bg, border: "none", borderRadius: 8, fontWeight: "bold", fontSize: 14, cursor: "pointer" }}>

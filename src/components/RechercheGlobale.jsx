@@ -79,7 +79,7 @@ export default function RechercheGlobale({ produits, credits, historique, onNavi
                 {resultats.produitsR.map(p => ligne(
                   "p" + p.id, p.nom,
                   p.reference_oem ? `réf. ${p.reference_oem}` : null,
-                  <span style={{ color: (p.stock || 0) <= 2 ? C.red : C.green }}>{p.stock || 0} u · {fmt(p.prix_vente)} F</span>,
+                  <span style={{ color: (p.stock || 0) <= 2 ? C.red : C.green }}>{p.stock || 0} u · {fmt(p.prix_vente)}</span>,
                   () => aller("stock")
                 ))}
               </Section>
@@ -88,7 +88,7 @@ export default function RechercheGlobale({ produits, credits, historique, onNavi
                 {resultats.clientsR.map((c, i) => ligne(
                   "c" + i, c.client,
                   `${c.n} crédit(s)${c.phone ? " · " + c.phone : ""}`,
-                  c.reste > 0 ? <span style={{ color: C.red }}>{fmt(c.reste)} F dû</span> : <span style={{ color: C.green }}>à jour</span>,
+                  c.reste > 0 ? <span style={{ color: C.red }}>{fmt(c.reste)} dû</span> : <span style={{ color: C.green }}>à jour</span>,
                   () => aller("credits")
                 ))}
               </Section>
@@ -97,7 +97,7 @@ export default function RechercheGlobale({ produits, credits, historique, onNavi
                 {resultats.mouvementsR.map(h => ligne(
                   "h" + h.id, h.texte,
                   `${h.heure || ""} · ${h.date_iso || ""}`,
-                  h.montant ? <span style={{ color: h.type === "depense" || h.type === "retour" ? C.red : C.green }}>{fmt(h.montant)} F</span> : null,
+                  h.montant ? <span style={{ color: h.type === "depense" || h.type === "retour" ? C.red : C.green }}>{fmt(h.montant)}</span> : null,
                   () => aller("historique")
                 ))}
               </Section>

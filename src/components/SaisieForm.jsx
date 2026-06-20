@@ -241,7 +241,7 @@ export default function SaisieForm({ produits, onSubmit, chargement, estEntrepot
               <div key={l.produitId} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderBottom: `1px solid ${C.border}` }}>
                 <div style={{ flex: 1 }}>
                   <div style={{ color: C.text, fontSize: 13 }}>{l.nom}</div>
-                  <div style={{ color: C.muted, fontSize: 10 }}>{fmt(l.pu)} F × {l.qte} = {fmt(l.pu * l.qte)} F</div>
+                  <div style={{ color: C.muted, fontSize: 10 }}>{fmt(l.pu)} × {l.qte} = {fmt(l.pu * l.qte)}</div>
                 </div>
                 <input type="number" min="1" value={l.qte} onChange={e => majQte(l.produitId, e.target.value)}
                   style={{ width: 46, padding: "5px", background: C.surface, border: `1px solid ${C.border}`, borderRadius: 6, color: C.text, fontSize: 12, textAlign: "center" }} />
@@ -257,7 +257,7 @@ export default function SaisieForm({ produits, onSubmit, chargement, estEntrepot
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8, fontSize: 14, fontWeight: "bold", color: C.text }}>
                   <span>{remiseF > 0 ? "NET À PAYER" : "TOTAL"}</span>
-                  <span style={{ color: C.green }}>{fmt(totalNet)} F</span>
+                  <span style={{ color: C.green }}>{fmt(totalNet)}</span>
                 </div>
               </>
             )}
@@ -273,7 +273,7 @@ export default function SaisieForm({ produits, onSubmit, chargement, estEntrepot
               <div style={{ marginBottom: 10 }}>
                 <label style={labelStyle}>AVANCE VERSÉE (F)</label>
                 <input type="number" inputMode="numeric" value={avance} onChange={e => setAvance(e.target.value)} placeholder="0" style={inputStyle} />
-                {totalNet > 0 && avance && <div style={{ fontSize: 11, color: C.red, marginTop: 4, textAlign: "right" }}>Reste : {fmt(totalNet - (parseInt(avance) || 0))} F</div>}
+                {totalNet > 0 && avance && <div style={{ fontSize: 11, color: C.red, marginTop: 4, textAlign: "right" }}>Reste : {fmt(totalNet - (parseInt(avance) || 0))}</div>}
               </div>
             </>
           )}
@@ -301,7 +301,7 @@ export default function SaisieForm({ produits, onSubmit, chargement, estEntrepot
 
       <button type="submit" disabled={chargement}
         style={{ width: "100%", padding: 12, marginTop: 4, background: chargement ? C.muted : C.green, color: C.bg, border: "none", borderRadius: 8, fontWeight: "bold", fontSize: 14, cursor: chargement ? "not-allowed" : "pointer" }}>
-        {chargement ? "⏳..." : estPanier ? `✅ ${t("enregistrer_vente")}${totalPanier > 0 ? ` (${fmt(totalNet)} F)` : ""}` : `✅ ${t("enregistrer")}`}
+        {chargement ? "⏳..." : estPanier ? `✅ ${t("enregistrer_vente")}${totalPanier > 0 ? ` (${fmt(totalNet)})` : ""}` : `✅ ${t("enregistrer")}`}
       </button>
     </form>
   );

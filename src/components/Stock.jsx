@@ -90,7 +90,7 @@ export default function Stock({ produits, boutiqueId, onRefresh, fournisseurs = 
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
           <div style={{ color: C.muted, fontWeight: "bold", fontSize: 11 }}>📦 CATALOGUE ({produitsFiltres.length} articles)</div>
           <div style={{ color: C.muted, fontSize: 10 }}>
-            Valeur : {fmt(produits.reduce((s, p) => s + ((p.prix_vente || 0) * (p.stock || 0)), 0))} F
+            Valeur : {fmt(produits.reduce((s, p) => s + ((p.prix_vente || 0) * (p.stock || 0)), 0))}
           </div>
         </div>
 
@@ -153,11 +153,11 @@ export default function Stock({ produits, boutiqueId, onRefresh, fournisseurs = 
                 <div>
                   <div style={{ fontWeight: "bold", color: C.text, fontSize: 13 }}>{p.nom}</div>
                   <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>
-                    {voirPrixAchat && <>Achat : {fmt(p.prix_achat)} F · </>}Vente : {fmt(p.prix_vente)} F
+                    {voirPrixAchat && <>Achat : {fmt(p.prix_achat)} · </>}Vente : {fmt(p.prix_vente)}
                   </div>
                   {voirPrixAchat && (
                     <div style={{ fontSize: 10, color: C.yellow, marginTop: 1 }}>
-                      Marge nette : +{fmt((p.prix_vente || 0) - (p.prix_achat || 0) - (p.frais_unitaire || 0))} F/u
+                      Marge nette : +{fmt((p.prix_vente || 0) - (p.prix_achat || 0) - (p.frais_unitaire || 0))}/u
                       {p.frais_unitaire > 0 && <span style={{ color: C.muted }}> (frais {fmt(p.frais_unitaire)})</span>}
                     </div>
                   )}

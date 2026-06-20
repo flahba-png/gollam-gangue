@@ -79,7 +79,7 @@ export default function Cloture({ historique, boutiqueActive, monNom, estPatron,
     });
     setEnCours(false);
     setFond(""); setCompte("");
-    onStatut(!estPatron ? "✅ Caisse clôturée. Merci !" : ecart === 0 ? "✅ Caisse clôturée, aucun écart." : `⚠️ Caisse clôturée. Écart : ${fmt(ecart)} F`);
+    onStatut(!estPatron ? "✅ Caisse clôturée. Merci !" : ecart === 0 ? "✅ Caisse clôturée, aucun écart." : `⚠️ Caisse clôturée. Écart : ${fmt(ecart)}`);
     charger();
   };
 
@@ -104,23 +104,23 @@ export default function Cloture({ historique, boutiqueActive, monNom, estPatron,
       <div style={{ background: C.surface, borderRadius: 8, border: `1px solid ${C.border}`, padding: 14, marginBottom: 12 }}>
         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
           <div style={{ color: C.muted, fontWeight: "bold", fontSize: 11 }}>💰 {t("encaissements_jour").toUpperCase()}</div>
-          <div style={{ color: C.text, fontWeight: "bold", fontSize: 12 }}>{fmt(totalGlobal)} F</div>
+          <div style={{ color: C.text, fontWeight: "bold", fontSize: 12 }}>{fmt(totalGlobal)}</div>
         </div>
         {MODES_PAIEMENT.filter(m => totaux[m.id] > 0).map(m => (
           <div key={m.id} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", fontSize: 13 }}>
             <span style={{ color: C.text }}>{m.emoji} {m.label}</span>
-            <span style={{ color: m.color, fontWeight: "bold" }}>{fmt(totaux[m.id])} F</span>
+            <span style={{ color: m.color, fontWeight: "bold" }}>{fmt(totaux[m.id])}</span>
           </div>
         ))}
         {/* Détail de la provenance */}
         <div style={{ borderTop: `1px solid ${C.border}`, marginTop: 6, paddingTop: 6 }}>
           <div style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", fontSize: 12 }}>
             <span style={{ color: C.muted }}>🛒 Ventes du jour</span>
-            <span style={{ color: C.text }}>{fmt(detail.ventesPures)} F</span>
+            <span style={{ color: C.text }}>{fmt(detail.ventesPures)}</span>
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", fontSize: 12 }}>
             <span style={{ color: C.muted }}>📒 Règlements créanciers</span>
-            <span style={{ color: C.text }}>{fmt(detail.reglements)} F</span>
+            <span style={{ color: C.text }}>{fmt(detail.reglements)}</span>
           </div>
         </div>
         {totalGlobal === 0 && <div style={{ color: C.muted, fontSize: 12, fontStyle: "italic" }}>Aucune vente ce jour.</div>}
@@ -133,11 +133,11 @@ export default function Cloture({ historique, boutiqueActive, monNom, estPatron,
           <Ligne label={t("fond_caisse")} >
             <input type="number" inputMode="numeric" value={fond} onChange={e => setFond(e.target.value)} placeholder="0" style={inp} />
           </Ligne>
-          <Ligne label={t("ventes_especes")}><span style={{ color: C.green, fontWeight: "bold" }}>{fmt(ventesEspeces)} F</span></Ligne>
+          <Ligne label={t("ventes_especes")}><span style={{ color: C.green, fontWeight: "bold" }}>{fmt(ventesEspeces)}</span></Ligne>
           <div style={{ borderTop: `1px solid ${C.border}`, margin: "4px 0" }} />
           {/* Clôture aveugle : le vendeur ne voit pas l'attendu ni l'écart */}
           {estPatron ? (
-            <Ligne label={t("attendu_caisse")}><span style={{ color: C.text, fontWeight: "bold" }}>{fmt(attendu)} F</span></Ligne>
+            <Ligne label={t("attendu_caisse")}><span style={{ color: C.text, fontWeight: "bold" }}>{fmt(attendu)}</span></Ligne>
           ) : (
             <div style={{ fontSize: 10, color: C.muted, fontStyle: "italic", padding: "2px 0" }}>
               🔒 Compte la caisse à l'aveugle. L'écart sera vérifié par le gérant.
@@ -150,7 +150,7 @@ export default function Cloture({ historique, boutiqueActive, monNom, estPatron,
             <div style={{ background: (ecart === 0 ? C.green : C.red) + "18", border: `1px solid ${(ecart === 0 ? C.green : C.red)}55`, borderRadius: 8, padding: 10, textAlign: "center", marginTop: 4 }}>
               <div style={{ fontSize: 10, color: C.muted }}>{t("ecart").toUpperCase()}</div>
               <div style={{ fontSize: 20, fontWeight: "bold", color: ecart === 0 ? C.green : C.red }}>
-                {ecart > 0 ? "+" : ""}{fmt(ecart)} F
+                {ecart > 0 ? "+" : ""}{fmt(ecart)}
               </div>
               <div style={{ fontSize: 10, color: C.muted }}>{ecart === 0 ? "Caisse juste ✅" : ecart > 0 ? "Excédent" : "Manquant"}</div>
             </div>
@@ -170,10 +170,10 @@ export default function Cloture({ historique, boutiqueActive, monNom, estPatron,
           <div key={c.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: `1px solid ${C.border}`, fontSize: 12 }}>
             <div>
               <div style={{ color: C.text }}>{c.date} · {c.vendeur_nom}</div>
-              <div style={{ color: C.muted, fontSize: 10 }}>Attendu {fmt(c.attendu_especes)} F · Compté {fmt(c.compte_especes)} F</div>
+              <div style={{ color: C.muted, fontSize: 10 }}>Attendu {fmt(c.attendu_especes)} · Compté {fmt(c.compte_especes)}</div>
             </div>
             <span style={{ background: (c.ecart === 0 ? C.green : C.red) + "22", color: c.ecart === 0 ? C.green : C.red, border: `1px solid ${(c.ecart === 0 ? C.green : C.red)}55`, borderRadius: 12, padding: "2px 8px", fontSize: 11, fontWeight: "bold" }}>
-              {c.ecart > 0 ? "+" : ""}{fmt(c.ecart)} F
+              {c.ecart > 0 ? "+" : ""}{fmt(c.ecart)}
             </span>
           </div>
         ))}

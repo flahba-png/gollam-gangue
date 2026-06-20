@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { supabase } from "./supabase";
-import { C, fmt, today, todayISO, heure, envoyerWhatsApp, appliquerTheme, themeActuel } from "./theme";
+import { C, fmt, today, todayISO, heure, envoyerWhatsApp, appliquerTheme, themeActuel, DEVISE, appliquerDevise } from "./theme";
 import { t, setLangue, langueActuelle } from "./i18n";
 import { permsDe } from "./permissions";
 import Auth from "./components/Auth";
@@ -180,7 +180,7 @@ export default function App() {
   // Demande d'abonnement par WhatsApp (depuis le bandeau de rappel)
   const demanderAbonnement = () => {
     envoyerWhatsApp(ADMIN_WHATSAPP,
-      `Bonjour 👋\nJe veux m'abonner à Gangué Platform (${fmt(PRIX_ABONNEMENT)} F/mois).\nEmail : ${session?.user?.email || ""}`);
+      `Bonjour 👋\nJe veux m'abonner à Gangué Platform (${fmt(PRIX_ABONNEMENT)}/mois).\nEmail : ${session?.user?.email || ""}`);
   };
   const [kpi, setKpi] = useState({ ca: 0, depenses: 0, benefice: 0, dettes: 0, margeTotal: 0 });
 
@@ -358,7 +358,7 @@ export default function App() {
           const { data: dettes } = await supabase.from("credits").select("reste_a_payer").eq("boutique_id", uid).ilike("client", client);
           const detteActuelle = (dettes || []).reduce((s, c) => s + (c.reste_a_payer || 0), 0);
           if (detteActuelle + reste > plafond) {
-            return { ok: false, err: `Plafond dépassé pour ${client} : max ${fmt(plafond)} F, déjà ${fmt(detteActuelle)} F dû.` };
+            return { ok: false, err: `Plafond dépassé pour ${client} : max ${fmt(plafond)}, déjà ${fmt(detteActuelle)} dû.` };
           }
         }
       }
@@ -446,7 +446,7 @@ export default function App() {
       });
     } catch { /* ignore si table absente */ }
     await chargerDonnees();
-    setStatut(`✅ Retour enregistré : -${fmt(refund)} F remboursé, stock réintégré.`);
+    setStatut(`✅ Retour enregistré : -${fmt(refund)} remboursé, stock réintégré.`);
   };
 
   // Trace cachée : enregistre une modification/suppression d'un mouvement
@@ -716,10 +716,10 @@ export default function App() {
           {peutVoirBenefice && (
             <>
               <div style={{ background: C.red + "22", color: C.red, padding: "3px 8px", borderRadius: 10, fontSize: 10, fontWeight: "bold" }}>
-                -{fmt(kpi.dettes)} F
+                -{fmt(kpi.dettes)}
               </div>
               <div style={{ background: kpi.benefice >= 0 ? C.green + "22" : C.red + "22", color: kpi.benefice >= 0 ? C.green : C.red, padding: "3px 8px", borderRadius: 10, fontSize: 10, fontWeight: "bold" }}>
-                {kpi.benefice >= 0 ? "+" : ""}{fmt(kpi.benefice)} F
+                {kpi.benefice >= 0 ? "+" : ""}{fmt(kpi.benefice)}
               </div>
             </>
           )}
@@ -745,6 +745,7 @@ export default function App() {
           onExport={() => { setCompteOuvert(false); exporterDonnees(); }}
           onRestaurer={(f) => { setCompteOuvert(false); restaurerSauvegarde(f); }}
           theme={theme} onTheme={changerTheme} langue={langue} onLangue={changerLangue}
+          devise={DEVISE.code} onDevise={(code) => { appliquerDevise(code); window.location.reload(); }}
           boutiques={boutiques} boutiqueActive={boutiqueActive} vueGlobale={vueGlobale}
           proprietaireId={session.user.id} estPatron={estPatron}
           onSelectBoutique={(b) => { setBoutiqueActive(b); setVueGlobale(false); }}
@@ -821,7 +822,7 @@ export default function App() {
           )
         )}
         {onglet === "credits" && <Credits credits={credits} kpi={kpi} boutiqueId={boutiqueActive?.id} onRefresh={chargerDonnees} onStatut={setStatut} boutique={boutique} />}
-        {onglet === "clients" && <Clients credits={credits} historique={historique} boutique={boutique} boutiqueId={vueGlobale ? null : boutiqueActive?.id} />}
+        {onglet === "clients" && <Clients credits={credits} historique={historique} boutique={boutique} boutiqueId={vueGlobale ? null : boutiqueActive?.id} boutiqueActive={boutiqueActive} estPatron={estPatron} onRefresh={chargerDonnees} />}
         {onglet === "documents" && (
           vueGlobale ? (
             <div style={{ padding: "0 12px" }}>

@@ -1,11 +1,12 @@
 import React, { useState } from "react";
-import { C } from "../theme";
+import { C, DEVISES } from "../theme";
 import { supabase } from "../supabase";
 import { LANGUES_DISPO } from "../i18n";
 import BoutiqueSwitcher from "./BoutiqueSwitcher";
 
 // Écran "Mon compte" : boutiques, email, changer mot de passe, déconnexion
 export default function Compte({ email, onClose, onLogout, onStatut, onExport, onRestaurer, theme = "sombre", onTheme, langue = "fr", onLangue,
+  devise = "XOF", onDevise,
   boutiques = [], boutiqueActive, vueGlobale, proprietaireId, estPatron, onSelectBoutique, onGlobale, onBoutiqueCreated }) {
   const [nouveau, setNouveau] = useState("");
   const [voir, setVoir] = useState(false);
@@ -133,6 +134,18 @@ export default function Compte({ email, onClose, onLogout, onStatut, onExport, o
             ))}
           </div>
         </div>
+
+        {/* DEVISE (patron uniquement) */}
+        {estPatron && onDevise && (
+          <div style={{ padding: "10px 12px", background: C.surface2, borderRadius: 8, marginBottom: 8 }}>
+            <div style={{ color: C.text, fontSize: 13, marginBottom: 6 }}>💱 Devise affichée</div>
+            <select value={devise} onChange={e => onDevise(e.target.value)}
+              style={{ width: "100%", padding: "9px 10px", background: C.bg, border: `1px solid ${C.border}`, borderRadius: 6, color: C.text, fontSize: 13 }}>
+              {DEVISES.map(d => <option key={d.code} value={d.code}>{d.nom} — {d.symbole}</option>)}
+            </select>
+            <div style={{ fontSize: 10, color: C.muted, marginTop: 6 }}>Change le symbole monétaire dans toute l'app (montants, reçus, rapports).</div>
+          </div>
+        )}
 
         <button onClick={onLogout}
           style={{ width: "100%", padding: 11, marginTop: 6, background: "transparent", color: C.text, border: `1px solid ${C.border}`, borderRadius: 8, fontWeight: "bold", fontSize: 13, cursor: "pointer", marginBottom: 16 }}>

@@ -2,7 +2,7 @@ import React, { useMemo, useState } from "react";
 import { C, fmt, todayISO } from "../theme";
 import { t } from "../i18n";
 import { supabase } from "../supabase";
-import { ventesParProduit, stocksDormants, caMensuel, exporterAnalyseCSV, exporterAnalysePDF } from "../analytics";
+import { ventesParProduit, stocksDormants, caMensuel, exporterAnalyseCSV, exporterAnalysePDF, exporterJournalComptable } from "../analytics";
 
 const Row = ({ label, value, color, bold }) => (
   <div style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", fontSize: 13 }}>
@@ -93,10 +93,10 @@ export default function Stats({ kpi, historique, produits, boutique, boutiqueAct
       {/* INDICATEURS CLÉS */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
         {[
-          { label: t("benefice_reel").toUpperCase(), value: `${fmt(kpi.benefice)} F`, color: kpi.benefice >= 0 ? C.green : C.red, big: true },
+          { label: t("benefice_reel").toUpperCase(), value: `${fmt(kpi.benefice)}`, color: kpi.benefice >= 0 ? C.green : C.red, big: true },
           { label: t("taux_marge").toUpperCase(), value: `${txMarge}%`, color: txMarge > 20 ? C.green : C.yellow, big: true },
           { label: t("nb_ventes").toUpperCase(), value: nbVentes, color: C.blue },
-          { label: t("panier_moyen").toUpperCase(), value: `${fmt(nbVentes > 0 ? Math.round(kpi.ca / nbVentes) : 0)} F`, color: C.text },
+          { label: t("panier_moyen").toUpperCase(), value: `${fmt(nbVentes > 0 ? Math.round(kpi.ca / nbVentes) : 0)}`, color: C.text },
         ].map(({ label, value, color, big }) => (
           <div key={label} style={{ background: C.surface, padding: 14, borderRadius: 8, border: `1px solid ${C.border}` }}>
             <div style={{ fontSize: 10, color: C.muted, fontWeight: "bold" }}>{label}</div>
@@ -116,6 +116,12 @@ export default function Stats({ kpi, historique, produits, boutique, boutiqueAct
           📊 Export Excel
         </button>
       </div>
+
+      {/* EXPORT COMPTABLE : journal de tous les mouvements pour un comptable */}
+      <button onClick={() => exporterJournalComptable(historique, boutique, moisISO)}
+        style={{ width: "100%", padding: "10px 0", marginBottom: 12, background: C.blue + "18", color: C.blue, border: `1px solid ${C.blue}44`, borderRadius: 8, fontSize: 12, fontWeight: "bold", cursor: "pointer" }}>
+        🧮 Export comptable du mois (journal détaillé)
+      </button>
 
       {/* CA MENSUEL */}
       <div style={{ background: C.surface, borderRadius: 8, border: `1px solid ${C.border}`, padding: 14, marginBottom: 12 }}>
@@ -144,11 +150,11 @@ export default function Stats({ kpi, historique, produits, boutique, boutiqueAct
               <span style={{ fontSize: 14 }}>{i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}.`}</span>
               <div>
                 <div style={{ color: C.text, fontSize: 13 }}>{p.nom}</div>
-                <div style={{ color: C.muted, fontSize: 10 }}>{p.unites} vendu(s) · CA {fmt(p.ca)} F</div>
+                <div style={{ color: C.muted, fontSize: 10 }}>{p.unites} vendu(s) · CA {fmt(p.ca)}</div>
               </div>
             </div>
             <span style={{ background: C.green + "22", color: C.green, border: `1px solid ${C.green}55`, borderRadius: 12, padding: "2px 8px", fontSize: 11, fontWeight: "bold" }}>
-              +{fmt(p.marge)} F
+              +{fmt(p.marge)}
             </span>
           </div>
         ))}
@@ -160,7 +166,7 @@ export default function Stats({ kpi, historique, produits, boutique, boutiqueAct
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
           <div style={{ color: C.yellow, fontWeight: "bold", fontSize: 11 }}>💤 STOCKS DORMANTS (+30 jours)</div>
           {capitalDormantTotal > 0 && (
-            <span style={{ color: C.red, fontSize: 11, fontWeight: "bold" }}>{fmt(capitalDormantTotal)} F bloqués</span>
+            <span style={{ color: C.red, fontSize: 11, fontWeight: "bold" }}>{fmt(capitalDormantTotal)} bloqués</span>
           )}
         </div>
         {dormants.length === 0 ? (
@@ -172,7 +178,7 @@ export default function Stats({ kpi, historique, produits, boutique, boutiqueAct
                 <div style={{ color: C.text }}>{p.nom}</div>
                 <div style={{ color: C.muted, fontSize: 10 }}>{p.stock} u en stock · jamais vendu récemment</div>
               </div>
-              <span style={{ color: C.red, fontWeight: "bold", fontSize: 12 }}>{fmt(p.capitalBloque)} F</span>
+              <span style={{ color: C.red, fontWeight: "bold", fontSize: 12 }}>{fmt(p.capitalBloque)}</span>
             </div>
           ))
         )}
@@ -192,9 +198,9 @@ export default function Stats({ kpi, historique, produits, boutique, boutiqueAct
         {taux > 0 ? (
           <>
             <div style={{ fontSize: 10, color: C.muted, marginBottom: 6 }}>MOIS EN COURS ({moisISO}) — prix TTC</div>
-            <Row label="CA TTC" value={`${fmt(caTTCmois)} F`} />
-            <Row label="Base HT" value={`${fmt(baseHT)} F`} />
-            <Row label={`TVA collectée (${taux}%)`} value={`${fmt(tvaCollectee)} F`} color={C.yellow} bold />
+            <Row label="CA TTC" value={`${fmt(caTTCmois)}`} />
+            <Row label="Base HT" value={`${fmt(baseHT)}`} />
+            <Row label={`TVA collectée (${taux}%)`} value={`${fmt(tvaCollectee)}`} color={C.yellow} bold />
             <button onClick={exporterFiscal}
               style={{ width: "100%", marginTop: 10, padding: "9px 0", background: C.blue + "22", color: C.blue, border: `1px solid ${C.blue}44`, borderRadius: 8, fontSize: 12, fontWeight: "bold", cursor: "pointer" }}>
               📄 Exporter le rapport fiscal

@@ -4,11 +4,34 @@ import { t } from "../i18n";
 import { supabase } from "../supabase";
 
 // Fiches clients : agrège crédits + historique par nom de client
-export default function Clients({ credits, historique, boutique, boutiqueId }) {
+export default function Clients({ credits, historique, boutique, boutiqueId, boutiqueActive, estPatron = false, onRefresh }) {
   const [recherche, setRecherche] = useState("");
   const [ouvert, setOuvert] = useState(null);
   const [plafonds, setPlafonds] = useState({}); // client(lower) -> plafond
   const [editPlaf, setEditPlaf] = useState("");
+
+  // Config fidélité (portée par la boutique active). Le patron l'active/règle.
+  const fid = {
+    active: !!boutiqueActive?.fidelite_active,
+    seuil: parseInt(boutiqueActive?.fidelite_seuil) || 1000,
+    palier: parseInt(boutiqueActive?.fidelite_palier) || 10,
+    valeur: parseInt(boutiqueActive?.fidelite_valeur) || 1000,
+  };
+  const [cfgFid, setCfgFid] = useState(fid);
+  const [cfgOuvert, setCfgOuvert] = useState(false);
+  const pointsDe = (totalAchats) => fid.seuil > 0 ? Math.floor((totalAchats || 0) / fid.seuil) : 0;
+
+  const enregistrerFidelite = async () => {
+    if (!boutiqueId) return;
+    await supabase.from("boutiques").update({
+      fidelite_active: cfgFid.active,
+      fidelite_seuil: parseInt(cfgFid.seuil) || 1000,
+      fidelite_palier: parseInt(cfgFid.palier) || 10,
+      fidelite_valeur: parseInt(cfgFid.valeur) || 1000,
+    }).eq("id", boutiqueId);
+    setCfgOuvert(false);
+    onRefresh && onRefresh();
+  };
 
   const chargerPlafonds = useCallback(async () => {
     if (!boutiqueId) return;
@@ -67,7 +90,7 @@ export default function Clients({ credits, historique, boutique, boutiqueId }) {
     const msg =
       `Bonjour ${c.nom} 👋\n\n` +
       `Ceci est un rappel amical de *${boutique?.nom || "notre boutique"}*.\n` +
-      `Votre solde restant à régler est de *${fmt(c.dette)} F*.\n\n` +
+      `Votre solde restant à régler est de *${fmt(c.dette)}*.\n\n` +
       `Merci de passer quand vous pouvez pour régulariser. 🙏\n` +
       `Bonne journée !`;
     envoyerWhatsApp(c.phone, msg);
@@ -75,6 +98,42 @@ export default function Clients({ credits, historique, boutique, boutiqueId }) {
 
   return (
     <div style={{ padding: "0 12px 12px" }}>
+      {/* PROGRAMME DE FIDÉLITÉ (config patron) */}
+      {estPatron && boutiqueId && (
+        <div style={{ background: C.surface, borderRadius: 8, border: `1px solid ${fid.active ? C.green + "55" : C.border}`, padding: 12, marginBottom: 12 }}>
+          <div onClick={() => setCfgOuvert(o => !o)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}>
+            <span style={{ color: C.text, fontSize: 13, fontWeight: "bold" }}>🎁 Programme de fidélité</span>
+            <span style={{ fontSize: 11, fontWeight: "bold", color: fid.active ? C.green : C.muted }}>
+              {fid.active ? `Actif · 1 pt / ${fmt(fid.seuil)}` : "Désactivé"} {cfgOuvert ? "▲" : "▼"}
+            </span>
+          </div>
+          {cfgOuvert && (
+            <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: C.text }}>
+                <input type="checkbox" checked={cfgFid.active} onChange={e => setCfgFid(c => ({ ...c, active: e.target.checked }))} />
+                Activer la fidélité pour cette boutique
+              </label>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, fontSize: 12, color: C.muted }}>
+                <span>1 point tous les</span>
+                <input type="number" inputMode="numeric" value={cfgFid.seuil} onChange={e => setCfgFid(c => ({ ...c, seuil: e.target.value }))} style={miniInp} /> <span>F dépensés</span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, fontSize: 12, color: C.muted }}>
+                <span>Récompense à partir de</span>
+                <input type="number" inputMode="numeric" value={cfgFid.palier} onChange={e => setCfgFid(c => ({ ...c, palier: e.target.value }))} style={miniInp} /> <span>points</span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, fontSize: 12, color: C.muted }}>
+                <span>Valeur de la récompense</span>
+                <input type="number" inputMode="numeric" value={cfgFid.valeur} onChange={e => setCfgFid(c => ({ ...c, valeur: e.target.value }))} style={miniInp} /> <span>F</span>
+              </div>
+              <button onClick={enregistrerFidelite}
+                style={{ padding: 9, background: C.green, color: C.bg, border: "none", borderRadius: 8, fontWeight: "bold", fontSize: 13, cursor: "pointer" }}>
+                Enregistrer
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
       <div style={{ marginBottom: 12 }}>
         <input type="text" placeholder={`🔍 ${t("rechercher_client")}`}
           value={recherche} onChange={e => setRecherche(e.target.value)}
@@ -112,7 +171,7 @@ export default function Clients({ credits, historique, boutique, boutiqueId }) {
                 <div style={{ textAlign: "right" }}>
                   {c.dette > 0 ? (
                     <span style={{ background: C.red + "22", color: C.red, border: `1px solid ${C.red}55`, borderRadius: 12, padding: "2px 8px", fontSize: 11, fontWeight: "bold" }}>
-                      Doit {fmt(c.dette)} F
+                      Doit {fmt(c.dette)}
                     </span>
                   ) : (
                     <span style={{ background: C.green + "22", color: C.green, border: `1px solid ${C.green}55`, borderRadius: 12, padding: "2px 8px", fontSize: 11, fontWeight: "bold" }}>
@@ -120,8 +179,17 @@ export default function Clients({ credits, historique, boutique, boutiqueId }) {
                     </span>
                   )}
                   <div style={{ fontSize: 9, color: C.muted, marginTop: 3 }}>
-                    Total : {fmt(c.totalAchats)} F
+                    Total : {fmt(c.totalAchats)}
                   </div>
+                  {fid.active && (() => {
+                    const pts = pointsDe(c.totalAchats);
+                    const recompense = fid.palier > 0 && pts >= fid.palier;
+                    return (
+                      <div style={{ fontSize: 9, marginTop: 3, color: recompense ? C.green : C.yellow, fontWeight: "bold" }}>
+                        {recompense ? `🎁 ${fmt(fid.valeur)} dispo` : `⭐ ${pts} pt`}
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
 
@@ -156,7 +224,7 @@ export default function Clients({ credits, historique, boutique, boutiqueId }) {
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 11 }}>
                           <span style={{ color: C.muted }}>Plafond de crédit</span>
                           <span style={{ color: plaf > 0 ? (depasse ? C.red : C.green) : C.muted, fontWeight: "bold" }}>
-                            {plaf > 0 ? `${fmt(c.dette)} / ${fmt(plaf)} F` : "Aucun"}
+                            {plaf > 0 ? `${fmt(c.dette)} / ${fmt(plaf)}` : "Aucun"}
                           </span>
                         </div>
                         {plaf > 0 && (
@@ -177,13 +245,31 @@ export default function Clients({ credits, historique, boutique, boutiqueId }) {
                     );
                   })()}
 
+                  {/* FIDÉLITÉ */}
+                  {fid.active && (() => {
+                    const pts = pointsDe(c.totalAchats);
+                    const restant = Math.max(0, fid.palier - pts);
+                    const recompense = fid.palier > 0 && pts >= fid.palier;
+                    return (
+                      <div style={{ background: (recompense ? C.green : C.yellow) + "14", border: `1px solid ${(recompense ? C.green : C.yellow)}44`, borderRadius: 8, padding: 10, marginBottom: 10 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
+                          <span style={{ color: C.text, fontWeight: "bold" }}>🎁 Fidélité : {pts} point(s)</span>
+                          {recompense
+                            ? <span style={{ color: C.green, fontWeight: "bold" }}>Récompense {fmt(fid.valeur)} 🎉</span>
+                            : <span style={{ color: C.muted }}>encore {restant} pt</span>}
+                        </div>
+                        {recompense && <div style={{ fontSize: 10, color: C.muted, marginTop: 4 }}>Applique une réduction de {fmt(fid.valeur)} sur son prochain achat.</div>}
+                      </div>
+                    );
+                  })()}
+
                   <div style={{ fontSize: 10, color: C.muted, fontWeight: "bold", marginBottom: 6 }}>HISTORIQUE D'ACHAT</div>
                   {c.operations.length === 0 && <div style={{ color: C.muted, fontSize: 11, fontStyle: "italic" }}>Aucun achat enregistré.</div>}
                   {c.operations.map((op, j) => (
                     <div key={j} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", borderBottom: `1px solid ${C.border}`, fontSize: 11 }}>
                       <span style={{ color: C.text }}>{op.texte}</span>
                       <span style={{ color: C.muted, flexShrink: 0, marginLeft: 8 }}>
-                        {fmt(op.montant)} F · {op.date}
+                        {fmt(op.montant)} · {op.date}
                       </span>
                     </div>
                   ))}
@@ -196,3 +282,5 @@ export default function Clients({ credits, historique, boutique, boutiqueId }) {
     </div>
   );
 }
+
+const miniInp = { width: 80, padding: "6px 8px", background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 6, color: "var(--text)", fontSize: 12, textAlign: "right" };

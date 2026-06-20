@@ -41,7 +41,7 @@ export default function Admin({ onStatut }) {
     return j <= 3 ? C.red : j <= 7 ? C.yellow : C.green;
   };
 
-  const relancer = (a) => envoyerWhatsApp(a.telephone, `Bonjour ${a.nom || ""} 👋\nVotre abonnement Gangué arrive à échéance. Pensez à renouveler (${fmt(PRIX_ABONNEMENT)} F/mois) pour continuer sans interruption. 🙏`);
+  const relancer = (a) => envoyerWhatsApp(a.telephone, `Bonjour ${a.nom || ""} 👋\nVotre abonnement Gangué arrive à échéance. Pensez à renouveler (${fmt(PRIX_ABONNEMENT)}/mois) pour continuer sans interruption. 🙏`);
 
   const filtres = abos
     .filter(a => !recherche || (a.nom || "").toLowerCase().includes(recherche.toLowerCase()) || (a.email || "").toLowerCase().includes(recherche.toLowerCase()))
@@ -61,7 +61,7 @@ export default function Admin({ onStatut }) {
         </div>
         <div style={{ background: C.surface, padding: 14, borderRadius: 8, border: `1px solid ${C.border}` }}>
           <div style={{ fontSize: 10, color: C.muted, fontWeight: "bold" }}>{t("revenu_mensuel").toUpperCase()}</div>
-          <div style={{ fontSize: 22, fontWeight: "bold", color: C.green, marginTop: 4 }}>{fmt(ca)} F</div>
+          <div style={{ fontSize: 22, fontWeight: "bold", color: C.green, marginTop: 4 }}>{fmt(ca)}</div>
         </div>
       </div>
 

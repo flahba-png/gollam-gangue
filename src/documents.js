@@ -17,17 +17,17 @@ export const imprimerDocument = (doc, boutique) => {
       <td>${i + 1}</td>
       <td>${l.nom}</td>
       <td style="text-align:center">${l.qte}</td>
-      ${avecPrix ? `<td style="text-align:right">${fmt(l.pu)} F</td><td style="text-align:right">${fmt(l.qte * l.pu)} F</td>` : ""}
+      ${avecPrix ? `<td style="text-align:right">${fmt(l.pu)}</td><td style="text-align:right">${fmt(l.qte * l.pu)}</td>` : ""}
     </tr>`).join("");
 
   const totaux = avecPrix ? `
     <div class="totaux">
       <table>
-        <tr><td>Sous-total</td><td>${fmt((doc.total_ht || 0) + (doc.remise || 0))} F</td></tr>
-        ${doc.remise > 0 ? `<tr><td>Remise</td><td>-${fmt(doc.remise)} F</td></tr>` : ""}
-        <tr><td>Total HT</td><td>${fmt(doc.total_ht)} F</td></tr>
-        ${doc.taux_tva > 0 ? `<tr><td>TVA (${doc.taux_tva}%)</td><td>${fmt((doc.total_ttc || 0) - (doc.total_ht || 0))} F</td></tr>` : ""}
-        <tr class="grand"><td>TOTAL ${doc.taux_tva > 0 ? "TTC" : ""}</td><td>${fmt(doc.total_ttc)} F</td></tr>
+        <tr><td>Sous-total</td><td>${fmt((doc.total_ht || 0) + (doc.remise || 0))}</td></tr>
+        ${doc.remise > 0 ? `<tr><td>Remise</td><td>-${fmt(doc.remise)}</td></tr>` : ""}
+        <tr><td>Total HT</td><td>${fmt(doc.total_ht)}</td></tr>
+        ${doc.taux_tva > 0 ? `<tr><td>TVA (${doc.taux_tva}%)</td><td>${fmt((doc.total_ttc || 0) - (doc.total_ht || 0))}</td></tr>` : ""}
+        <tr class="grand"><td>TOTAL ${doc.taux_tva > 0 ? "TTC" : ""}</td><td>${fmt(doc.total_ttc)}</td></tr>
       </table>
     </div>` : "";
 
@@ -83,13 +83,13 @@ export const texteDocument = (doc, boutique) => {
     `${doc.date || today()}`,
     `Client : ${doc.client || "Client"}`,
     `---`,
-    ...(doc.lignes || []).map(l => avecPrix ? `${l.qte}x ${l.nom} — ${fmt(l.qte * l.pu)} F` : `${l.qte}x ${l.nom}`),
+    ...(doc.lignes || []).map(l => avecPrix ? `${l.qte}x ${l.nom} — ${fmt(l.qte * l.pu)}` : `${l.qte}x ${l.nom}`),
     `---`,
   ];
   if (avecPrix) {
-    if (doc.remise > 0) lignes.push(`Remise : -${fmt(doc.remise)} F`);
-    if (doc.taux_tva > 0) lignes.push(`HT : ${fmt(doc.total_ht)} F · TVA ${doc.taux_tva}%`);
-    lignes.push(`TOTAL : ${fmt(doc.total_ttc)} F`);
+    if (doc.remise > 0) lignes.push(`Remise : -${fmt(doc.remise)}`);
+    if (doc.taux_tva > 0) lignes.push(`HT : ${fmt(doc.total_ht)} · TVA ${doc.taux_tva}%`);
+    lignes.push(`TOTAL : ${fmt(doc.total_ttc)}`);
   }
   if (doc.type === "devis" && doc.validite) lignes.push(`Valable jusqu'au ${doc.validite}`);
   return lignes.join("\n");

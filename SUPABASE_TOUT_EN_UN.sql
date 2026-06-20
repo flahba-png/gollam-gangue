@@ -432,4 +432,11 @@ drop policy if exists "logsmod_select_owner" on logs_modifications;
 create policy "logsmod_select_owner" on logs_modifications for select
   using (boutique_id in (select id from boutiques where proprietaire_id = auth.uid()));
 
+-- ========== MIGRATION 23 : programme de fidélité (config par boutique) ==========
+-- Points dérivés du total des achats (pas de table : calcul à la volée côté app).
+alter table boutiques add column if not exists fidelite_active boolean default false;
+alter table boutiques add column if not exists fidelite_seuil integer default 1000;      -- F dépensés pour 1 point
+alter table boutiques add column if not exists fidelite_palier integer default 10;        -- points requis pour une récompense
+alter table boutiques add column if not exists fidelite_valeur integer default 1000;      -- valeur (F) de la récompense
+
 -- ✅ Terminé. Toutes les tables, colonnes et règles de sécurité sont en place.

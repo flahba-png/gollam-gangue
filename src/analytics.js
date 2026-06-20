@@ -105,15 +105,62 @@ export const exporterAnalyseCSV = (palmares, dormants, boutique) => {
   URL.revokeObjectURL(url);
 };
 
+// Export comptable : journal détaillé de tous les mouvements (pour un comptable).
+// CSV ouvrable dans Excel ; montants en nombres bruts (sans symbole de devise).
+export const exporterJournalComptable = (historique, boutique, periode = "") => {
+  const typeLisible = { vente: "Vente", depense: "Dépense", retour: "Retour/Avoir", ajout: "Entrée stock", transfert: "Transfert", inventaire: "Inventaire" };
+  // Sens comptable : recettes positives, dépenses/retours négatifs
+  const signe = (h) => (h.type === "depense" || h.type === "retour") ? -1 : 1;
+  const rows = [...historique]
+    .filter(h => !periode || (h.date_iso || "").startsWith(periode))
+    .sort((a, b) => (a.date_iso + (a.heure || "")).localeCompare(b.date_iso + (b.heure || "")));
+
+  const esc = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+  const entete = ["Date", "Heure", "Type", "Description", "Client", "Mode de paiement", "Montant", "Bénéfice", "Vendeur"];
+  let totalRecettes = 0, totalDepenses = 0, totalMarge = 0;
+
+  const lignes = rows.map(h => {
+    const montant = (h.montant || 0) * (h.type === "depense" ? -1 : signe(h));
+    if (h.type === "depense") totalDepenses += (h.montant || 0);
+    else if (h.type === "vente") { totalRecettes += (h.montant || 0); totalMarge += (h.benefice_etabli || 0); }
+    else if (h.type === "retour") { totalRecettes -= (h.montant || 0); totalMarge += (h.benefice_etabli || 0); }
+    return [
+      h.date_iso || "", h.heure || "", typeLisible[h.type] || h.type,
+      h.texte || "", h.details_facture?.client || "", h.mode_paiement || "",
+      montant, h.benefice_etabli || 0, h.vendeur_nom || "",
+    ].map(esc).join(";");
+  });
+
+  const contenu = [
+    esc(`Journal comptable - ${boutique?.nom || "Boutique"}${periode ? " - " + periode : ""}`),
+    "",
+    entete.map(esc).join(";"),
+    ...lignes,
+    "",
+    [esc("TOTAUX"), "", "", "", "", "", esc(totalRecettes - totalDepenses), esc(totalMarge), ""].join(";"),
+    [esc("Total recettes"), esc(totalRecettes)].join(";"),
+    [esc("Total dépenses"), esc(totalDepenses)].join(";"),
+    [esc("Résultat (recettes - dépenses)"), esc(totalRecettes - totalDepenses)].join(";"),
+  ].join("\n");
+
+  const blob = new Blob(["﻿" + contenu], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `journal_comptable_${periode || new Date().toISOString().split("T")[0]}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+};
+
 // Export PDF (via fenêtre d'impression) d'un rapport complet
 export const exporterAnalysePDF = (data, boutique) => {
   const { kpi, palmares, dormants, mois, txMarge, capitalDormantTotal } = data;
   const w = window.open("", "_blank", "width=800,height=900");
   const ligneProduit = palmares.slice(0, 10).map((p, i) =>
-    `<tr><td>${i + 1}</td><td>${p.nom}</td><td style="text-align:right">${p.unites}</td><td style="text-align:right">${fmt(p.ca)} F</td><td style="text-align:right;color:#0a0">${fmt(p.marge)} F</td></tr>`
+    `<tr><td>${i + 1}</td><td>${p.nom}</td><td style="text-align:right">${p.unites}</td><td style="text-align:right">${fmt(p.ca)}</td><td style="text-align:right;color:#0a0">${fmt(p.marge)}</td></tr>`
   ).join("");
   const ligneDormant = dormants.slice(0, 10).map(p =>
-    `<tr><td>${p.nom}</td><td style="text-align:right">${p.stock} u</td><td style="text-align:right;color:#c00">${fmt(p.capitalBloque)} F</td></tr>`
+    `<tr><td>${p.nom}</td><td style="text-align:right">${p.stock} u</td><td style="text-align:right;color:#c00">${fmt(p.capitalBloque)}</td></tr>`
   ).join("");
 
   w.document.write(`<html><head><title>Rapport financier</title><style>
@@ -133,14 +180,14 @@ export const exporterAnalysePDF = (data, boutique) => {
     <h1>${boutique?.nom || "Boutique"}</h1>
     <div class="sub">Rapport financier · ${boutique?.ville || ""} · ${today()}</div>
     <div class="kpis">
-      <div class="kpi"><div class="l">Chiffre d'affaires</div><div class="v" style="color:#00A884">${fmt(kpi.ca)} F</div></div>
-      <div class="kpi"><div class="l">Dépenses</div><div class="v" style="color:#c00">${fmt(kpi.depenses)} F</div></div>
-      <div class="kpi"><div class="l">Bénéfice net</div><div class="v" style="color:${kpi.benefice >= 0 ? '#00A884' : '#c00'}">${fmt(kpi.benefice)} F</div></div>
+      <div class="kpi"><div class="l">Chiffre d'affaires</div><div class="v" style="color:#00A884">${fmt(kpi.ca)}</div></div>
+      <div class="kpi"><div class="l">Dépenses</div><div class="v" style="color:#c00">${fmt(kpi.depenses)}</div></div>
+      <div class="kpi"><div class="l">Bénéfice net</div><div class="v" style="color:${kpi.benefice >= 0 ? '#00A884' : '#c00'}">${fmt(kpi.benefice)}</div></div>
       <div class="kpi"><div class="l">Taux de marge</div><div class="v">${txMarge}%</div></div>
     </div>
     <h2>🏆 Palmarès des ventes (par bénéfice réel)</h2>
     <table><tr><th>#</th><th>Produit</th><th style="text-align:right">Unités</th><th style="text-align:right">CA</th><th style="text-align:right">Marge nette</th></tr>${ligneProduit || '<tr><td colspan="5">Aucune vente.</td></tr>'}</table>
-    <h2>💤 Stocks dormants — capital bloqué : ${fmt(capitalDormantTotal)} F</h2>
+    <h2>💤 Stocks dormants — capital bloqué : ${fmt(capitalDormantTotal)}</h2>
     <table><tr><th>Produit</th><th style="text-align:right">Stock</th><th style="text-align:right">Capital bloqué</th></tr>${ligneDormant || '<tr><td colspan="3">Aucun stock dormant. 👍</td></tr>'}</table>
     <div class="f">Généré par Gangué Platform</div>
   </body></html>`);

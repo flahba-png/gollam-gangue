@@ -85,7 +85,7 @@ export default function Historique({ historique, produits, boutiqueId, onRefresh
         ].map(({ label, value, color, isCnt }) => (
           <div key={label} style={{ background: C.surface, padding: 10, borderRadius: 8, border: `1px solid ${C.border}`, textAlign: "center" }}>
             <div style={{ fontSize: 9, color: C.muted }}>{label}</div>
-            <div style={{ fontSize: 14, fontWeight: "bold", color }}>{isCnt ? value : `${fmt(value)} F`}</div>
+            <div style={{ fontSize: 14, fontWeight: "bold", color }}>{isCnt ? value : `${fmt(value)}`}</div>
           </div>
         ))}
       </div>
@@ -119,11 +119,11 @@ export default function Historique({ historique, produits, boutiqueId, onRefresh
                     </span>
                   ) : (
                     <span style={{ color: h.type === "vente" ? C.green : (h.type === "depense" || h.type === "retour") ? C.red : C.text, fontWeight: "bold", fontSize: 13 }}>
-                      {(h.type === "depense" || h.type === "retour") ? "-" : "+"}{fmt(h.montant)} F
+                      {(h.type === "depense" || h.type === "retour") ? "-" : "+"}{fmt(h.montant)}
                     </span>
                   )}
                   {voirBenefice && h.type === "vente" && h.benefice_etabli > 0 && (
-                    <span style={{ color: C.yellow, fontSize: 10 }}>+{fmt(h.benefice_etabli)} m</span>
+                    <span style={{ color: C.yellow, fontSize: 10 }} title="marge">+{fmt(h.benefice_etabli)}</span>
                   )}
                   {h.type === "vente" && (
                     <>

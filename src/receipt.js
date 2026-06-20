@@ -17,25 +17,25 @@ export const genererTexteRecu = (log, boutique) => {
 
   // Détail des articles (panier multi-lignes si présent)
   if (Array.isArray(info.lignes) && info.lignes.length) {
-    info.lignes.forEach(l => lignes.push(`• ${l.qte}x ${l.nom} — ${fmt(l.total)} F`));
+    info.lignes.forEach(l => lignes.push(`• ${l.qte}x ${l.nom} — ${fmt(l.total)}`));
   } else {
     lignes.push(`📦 ${info.article}`);
   }
 
   lignes.push(`━━━━━━━━━━━━━━━`);
-  if (info.remise > 0) lignes.push(`🏷️ Remise : -${fmt(info.remise)} F`);
+  if (info.remise > 0) lignes.push(`🏷️ Remise : -${fmt(info.remise)}`);
   const taux = parseFloat(boutique?.taux_tva) || 0;
   if (taux > 0) {
     const ht = Math.round((info.total || 0) / (1 + taux / 100));
-    lignes.push(`HT : ${fmt(ht)} F`, `TVA ${taux}% : ${fmt((info.total || 0) - ht)} F`);
+    lignes.push(`HT : ${fmt(ht)}`, `TVA ${taux}% : ${fmt((info.total || 0) - ht)}`);
   }
   lignes.push(
-    `💰 ${taux > 0 ? "TTC" : "Net"} : *${fmt(info.total)} F*`,
+    `💰 ${taux > 0 ? "TTC" : "Net"} : *${fmt(info.total)}*`,
     `${mode.emoji} Paiement : ${mode.label}`,
   );
 
   if (info.reste > 0) {
-    lignes.push(`⚠️ Reste à payer : *${fmt(info.reste)} F*`);
+    lignes.push(`⚠️ Reste à payer : *${fmt(info.reste)}*`);
   } else {
     lignes.push(`✅ SOLDÉ`);
   }
@@ -76,14 +76,14 @@ export const imprimerFacture = (log, boutique) => {
     <div class="i"><b>PAIEMENT :</b> ${mode.emoji} ${mode.label}</div>
     <table><tr style="font-weight:bold"><td>Article</td><td style="text-align:right">Montant</td></tr>
     ${Array.isArray(info.lignes) && info.lignes.length
-      ? info.lignes.map(l => `<tr><td>${l.qte}x ${l.nom}</td><td style="text-align:right">${fmt(l.total)} F</td></tr>`).join("")
-      : `<tr><td>${info.article}</td><td style="text-align:right">${fmt(info.total)} F</td></tr>`}
+      ? info.lignes.map(l => `<tr><td>${l.qte}x ${l.nom}</td><td style="text-align:right">${fmt(l.total)}</td></tr>`).join("")
+      : `<tr><td>${info.article}</td><td style="text-align:right">${fmt(info.total)}</td></tr>`}
     </table>
-    ${info.remise > 0 ? `<div class="tot" style="font-size:11px;color:#000">Remise : -${fmt(info.remise)} F</div>` : ""}
-    ${(() => { const taux = parseFloat(boutique?.taux_tva) || 0; if (taux <= 0) return ""; const ht = Math.round((info.total || 0) / (1 + taux / 100)); return `<div class="tot" style="font-size:10px;font-weight:normal">HT : ${fmt(ht)} F &nbsp; TVA ${taux}% : ${fmt((info.total || 0) - ht)} F</div>`; })()}
-    <div class="tot">TOTAL : ${fmt(info.total)} F</div>
+    ${info.remise > 0 ? `<div class="tot" style="font-size:11px;color:#000">Remise : -${fmt(info.remise)}</div>` : ""}
+    ${(() => { const taux = parseFloat(boutique?.taux_tva) || 0; if (taux <= 0) return ""; const ht = Math.round((info.total || 0) / (1 + taux / 100)); return `<div class="tot" style="font-size:10px;font-weight:normal">HT : ${fmt(ht)} &nbsp; TVA ${taux}% : ${fmt((info.total || 0) - ht)}</div>`; })()}
+    <div class="tot">TOTAL : ${fmt(info.total)}</div>
     <div class="tot" style="color:${info.reste > 0 ? '#000' : '#000'};font-size:11px">
-      ${info.reste > 0 ? `RESTE DÛ : ${fmt(info.reste)} F` : "✅ SOLDÉ"}</div>
+      ${info.reste > 0 ? `RESTE DÛ : ${fmt(info.reste)}` : "✅ SOLDÉ"}</div>
     <div class="f">Merci pour votre confiance !</div>
   </body></html>`);
   w.document.close();

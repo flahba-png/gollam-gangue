@@ -167,13 +167,13 @@ export default function Equipe({ boutiqueActive, proprietaireId, historique, onS
           <div key={v.nom} style={{ padding: "9px 0", borderBottom: `1px solid ${C.border}` }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div style={{ color: C.text, fontSize: 13, fontWeight: "bold" }}>{v.nom === "Patron" ? "🏪 Patron" : `👤 ${v.nom}`}</div>
-              <div style={{ color: C.green, fontWeight: "bold", fontSize: 13 }}>{fmt(v.total)} F</div>
+              <div style={{ color: C.green, fontWeight: "bold", fontSize: 13 }}>{fmt(v.total)}</div>
             </div>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 4 }}>
               <span style={{ color: C.muted, fontSize: 10 }}>{v.nb} vente(s)</span>
               {MODES_PAIEMENT.filter(mp => v.modes[mp.id] > 0).map(mp => (
                 <span key={mp.id} style={{ color: mp.color, fontSize: 10 }}>
-                  {mp.emoji} {fmt(v.modes[mp.id])} F
+                  {mp.emoji} {fmt(v.modes[mp.id])}
                 </span>
               ))}
             </div>

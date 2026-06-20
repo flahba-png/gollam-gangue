@@ -183,7 +183,7 @@ export default function Documents({ produits, boutiqueActive, boutique, credits 
             <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 0", borderBottom: `1px solid ${C.border}`, fontSize: 12 }}>
               <span style={{ color: C.text }}>{l.qte}x {l.nom}</span>
               <span style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                <span style={{ color: C.muted }}>{fmt(l.qte * l.pu)} F</span>
+                <span style={{ color: C.muted }}>{fmt(l.qte * l.pu)}</span>
                 <button onClick={() => setLignes(prev => prev.filter((_, j) => j !== i))} style={{ background: C.red + "22", color: C.red, border: "none", borderRadius: 4, padding: "2px 6px", cursor: "pointer", fontSize: 10 }}>✕</button>
               </span>
             </div>
@@ -195,9 +195,9 @@ export default function Documents({ produits, boutiqueActive, boutique, credits 
             <input type="number" value={remise} onChange={e => setRemise(e.target.value)} placeholder="0" style={{ ...inp, width: 90, textAlign: "right" }} />
           </div>
           <div style={{ textAlign: "right", fontSize: 12, color: C.muted, marginTop: 6 }}>
-            HT : {fmt(ht)} F{tauxTva > 0 ? ` · TVA ${tauxTva}% : ${fmt(tvaF)} F` : ""}
+            HT : {fmt(ht)}{tauxTva > 0 ? ` · TVA ${tauxTva}% : ${fmt(tvaF)}` : ""}
           </div>
-          <div style={{ textAlign: "right", fontSize: 16, fontWeight: "bold", color: C.green, marginTop: 2 }}>TOTAL : {fmt(ttc)} F</div>
+          <div style={{ textAlign: "right", fontSize: 16, fontWeight: "bold", color: C.green, marginTop: 2 }}>TOTAL : {fmt(ttc)}</div>
 
           {type === "devis" && (
             <input type="date" value={validite} onChange={e => setValidite(e.target.value)} title="Valable jusqu'au" style={{ ...inp, marginTop: 10 }} />
@@ -222,7 +222,7 @@ export default function Documents({ produits, boutiqueActive, boutique, credits 
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
               <div>
                 <div style={{ color: C.text, fontSize: 13, fontWeight: "bold" }}>{d.numero} · {d.client}</div>
-                <div style={{ color: C.muted, fontSize: 10 }}>{d.date} · {fmt(d.total_ttc)} F</div>
+                <div style={{ color: C.muted, fontSize: 10 }}>{d.date} · {fmt(d.total_ttc)}</div>
               </div>
               {badgeStatut(d.statut)}
             </div>

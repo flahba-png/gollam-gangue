@@ -11,7 +11,7 @@ export default function Paywall({ abonnement, nomBoutique, email, onDeconnexion 
       `Je souhaite m'abonner à Gangué Platform.\n` +
       `Boutique : ${nomBoutique || "—"}\n` +
       `Email : ${email || "—"}\n` +
-      `Montant : ${fmt(PRIX_ABONNEMENT)} F/mois\n\n` +
+      `Montant : ${fmt(PRIX_ABONNEMENT)}/mois\n\n` +
       `J'ai effectué / je vais effectuer le paiement par Mobile Money. Merci d'activer mon compte.`;
     envoyerWhatsApp(ADMIN_WHATSAPP, msg);
   };
@@ -31,7 +31,7 @@ export default function Paywall({ abonnement, nomBoutique, email, onDeconnexion 
 
         <div style={{ background: C.surface, borderRadius: 14, border: `1px solid ${C.green}55`, padding: 22, marginBottom: 14 }}>
           <div style={{ textAlign: "center", marginBottom: 16 }}>
-            <span style={{ fontSize: 34, fontWeight: "bold", color: C.green }}>{fmt(PRIX_ABONNEMENT)} F</span>
+            <span style={{ fontSize: 34, fontWeight: "bold", color: C.green }}>{fmt(PRIX_ABONNEMENT)}</span>
             <span style={{ color: C.muted, fontSize: 14 }}> / {t("par_mois")}</span>
           </div>
           <div style={{ fontSize: 12, color: C.text, lineHeight: 1.9 }}>
@@ -49,7 +49,7 @@ export default function Paywall({ abonnement, nomBoutique, email, onDeconnexion 
             🟠 Orange Money : <b>{PAIEMENT_INFOS.orange}</b>
           </div>
           <div style={{ fontSize: 11, color: C.muted, marginTop: 8 }}>
-            Envoie {fmt(PRIX_ABONNEMENT)} F, puis clique ci-dessous pour confirmer. Ton compte sera activé rapidement.
+            Envoie {fmt(PRIX_ABONNEMENT)}, puis clique ci-dessous pour confirmer. Ton compte sera activé rapidement.
           </div>
         </div>
 

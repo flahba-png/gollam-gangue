@@ -5,7 +5,7 @@ import { t } from "../i18n";
 const StatCard = ({ label, value, color, sub }) => (
   <div style={{ background: C.surface, padding: 14, borderRadius: 8, border: `1px solid ${C.border}` }}>
     <div style={{ fontSize: 10, color: C.muted, fontWeight: "bold", letterSpacing: 1 }}>{label}</div>
-    <div style={{ fontSize: 20, fontWeight: "bold", color, marginTop: 4 }}>{fmt(value)} F</div>
+    <div style={{ fontSize: 20, fontWeight: "bold", color, marginTop: 4 }}>{fmt(value)}</div>
     {sub && <div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>{sub}</div>}
   </div>
 );
@@ -111,7 +111,7 @@ export default function Dashboard({ kpi, historique, credits, produits, estPatro
         <div onClick={onVoirCredits} style={{ background: C.red + "14", borderRadius: 10, border: `1px solid ${C.red}55`, padding: 12, marginBottom: 12, cursor: onVoirCredits ? "pointer" : "default", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div style={{ fontSize: 13, color: C.text }}>
             ⏰ <b>{creancesEnRetard.length} client(s)</b> te doivent de l'argent depuis +{SEUIL_RETARD}j
-            <div style={{ fontSize: 11, color: C.red, fontWeight: "bold", marginTop: 2 }}>{fmt(creancesEnRetard.reduce((s, c) => s + (c.reste_a_payer || 0), 0))} F à récupérer</div>
+            <div style={{ fontSize: 11, color: C.red, fontWeight: "bold", marginTop: 2 }}>{fmt(creancesEnRetard.reduce((s, c) => s + (c.reste_a_payer || 0), 0))} à récupérer</div>
           </div>
           <span style={{ color: C.red, fontSize: 18 }}>›</span>
         </div>
@@ -142,7 +142,7 @@ export default function Dashboard({ kpi, historique, credits, produits, estPatro
       <div style={{ background: C.surface, borderRadius: 8, border: `1px solid ${C.border}`, padding: 14, marginBottom: 12 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
           <div style={{ color: C.muted, fontWeight: "bold", fontSize: 11 }}>💰 {t("caisse_par_mode").toUpperCase()}</div>
-          <div style={{ color: C.text, fontSize: 11, fontWeight: "bold" }}>{fmt(totalEncaisse)} F</div>
+          <div style={{ color: C.text, fontSize: 11, fontWeight: "bold" }}>{fmt(totalEncaisse)}</div>
         </div>
         {totalEncaisse === 0 ? (
           <div style={{ color: C.muted, fontSize: 12, fontStyle: "italic" }}>Aucun encaissement enregistré.</div>
@@ -153,7 +153,7 @@ export default function Dashboard({ kpi, historique, credits, produits, estPatro
               <div key={m.id} style={{ marginBottom: 10 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 4 }}>
                   <span style={{ color: C.text }}>{m.emoji} {m.label}</span>
-                  <span style={{ color: m.color, fontWeight: "bold" }}>{fmt(m.total)} F <span style={{ color: C.muted, fontWeight: "normal" }}>· {pct}%</span></span>
+                  <span style={{ color: m.color, fontWeight: "bold" }}>{fmt(m.total)} <span style={{ color: C.muted, fontWeight: "normal" }}>· {pct}%</span></span>
                 </div>
                 <div style={{ background: C.surface2, borderRadius: 4, height: 6, overflow: "hidden" }}>
                   <div style={{ background: m.color, height: 6, width: `${pct}%`, transition: "width 0.3s" }} />
@@ -198,7 +198,7 @@ export default function Dashboard({ kpi, historique, credits, produits, estPatro
                   </span>
                 ) : (
                   <span style={{ color: h.type === "vente" ? C.green : h.type === "depense" ? C.red : C.text, fontWeight: "bold" }}>
-                    {h.type === "depense" ? "-" : "+"}{fmt(h.montant)} F
+                    {h.type === "depense" ? "-" : "+"}{fmt(h.montant)}
                   </span>
                 )}
                 {h.type === "vente" && (

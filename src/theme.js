@@ -32,7 +32,38 @@ export const appliquerTheme = (nom) => {
 // Applique le thème enregistré dès le chargement
 appliquerTheme(themeActuel());
 
-export const fmt = (n) => Number(n || 0).toLocaleString("fr-FR");
+// ==========================================
+// DEVISES (Franc CFA par défaut + autres devises africaines)
+// ==========================================
+export const DEVISES = [
+  { code: "XOF", symbole: "F", nom: "Franc CFA Ouest (XOF)" },
+  { code: "XAF", symbole: "FCFA", nom: "Franc CFA Central (XAF)" },
+  { code: "GNF", symbole: "FG", nom: "Franc guinéen (GNF)" },
+  { code: "GHS", symbole: "₵", nom: "Cedi ghanéen (GHS)" },
+  { code: "NGN", symbole: "₦", nom: "Naira nigérian (NGN)" },
+  { code: "CDF", symbole: "FC", nom: "Franc congolais (CDF)" },
+  { code: "KES", symbole: "KSh", nom: "Shilling kényan (KES)" },
+  { code: "ZAR", symbole: "R", nom: "Rand sud-africain (ZAR)" },
+  { code: "MAD", symbole: "DH", nom: "Dirham marocain (MAD)" },
+  { code: "DZD", symbole: "DA", nom: "Dinar algérien (DZD)" },
+  { code: "TND", symbole: "DT", nom: "Dinar tunisien (TND)" },
+  { code: "EGP", symbole: "£", nom: "Livre égyptienne (EGP)" },
+  { code: "RWF", symbole: "FRw", nom: "Franc rwandais (RWF)" },
+  { code: "USD", symbole: "$", nom: "Dollar US (USD)" },
+  { code: "EUR", symbole: "€", nom: "Euro (EUR)" },
+];
+
+const DEVISE_KEY = "gangue_devise";
+const deviseStockee = () => { try { return localStorage.getItem(DEVISE_KEY); } catch { return null; } };
+export let DEVISE = DEVISES.find(d => d.code === deviseStockee()) || DEVISES[0];
+export const appliquerDevise = (code) => {
+  DEVISE = DEVISES.find(d => d.code === code) || DEVISES[0];
+  try { localStorage.setItem(DEVISE_KEY, DEVISE.code); } catch { /* ignore */ }
+};
+
+// nb = nombre brut (sans devise) ; fmt = montant avec le symbole de la devise active
+export const nb = (n) => Number(n || 0).toLocaleString("fr-FR");
+export const fmt = (n) => `${nb(n)} ${DEVISE.symbole}`;
 export const today = () => new Date().toLocaleDateString("fr-FR");
 export const todayISO = () => new Date().toISOString().split("T")[0];
 export const heure = () => new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });

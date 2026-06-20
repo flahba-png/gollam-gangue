@@ -188,7 +188,7 @@ export default function ImportStock({ produits, boutiqueId, onRefresh, onStatut,
                   <span style={{ color: C.text, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {p.existant && <span title="Déjà dans le catalogue" style={{ color: C.yellow }}>⚠️ </span>}{p.nom}
                   </span>
-                  <span style={{ color: C.muted, marginLeft: 8 }}>{fmt(p.prix_vente)} F · {p.stock} u</span>
+                  <span style={{ color: C.muted, marginLeft: 8 }}>{fmt(p.prix_vente)} · {p.stock} u</span>
                 </div>
               ))}
               {prepares.length > aperçu.length && <div style={{ color: C.muted, fontSize: 11, padding: "4px 0", fontStyle: "italic" }}>… +{prepares.length - aperçu.length} autres</div>}

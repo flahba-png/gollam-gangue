@@ -8,9 +8,9 @@ export default function Credits({ credits, kpi, boutiqueId, onRefresh, onStatut,
     `Bonjour ${c.client} 👋\n\n` +
     `Rappel de *${boutique?.nom || "notre boutique"}*.\n` +
     `Article : ${c.article}\n` +
-    `Montant total : ${fmt(c.total)} F\n` +
-    `Déjà payé : ${fmt(c.avance)} F\n` +
-    `Reste à payer : *${fmt(c.reste_a_payer)} F*\n\n` +
+    `Montant total : ${fmt(c.total)}\n` +
+    `Déjà payé : ${fmt(c.avance)}\n` +
+    `Reste à payer : *${fmt(c.reste_a_payer)}*\n\n` +
     `Merci de régulariser quand vous pouvez. 🙏`;
 
   const relancer = (c) => envoyerWhatsApp(c.client_phone, messageRelance(c));
@@ -40,7 +40,7 @@ export default function Credits({ credits, kpi, boutiqueId, onRefresh, onStatut,
     if (!fiche) return;
     const montant = parseInt(montantsRembours[creditId]) || 0;
     if (montant <= 0) { onStatut("⚠️ Entre un montant valide."); return; }
-    if (montant > fiche.reste_a_payer) { onStatut(`⚠️ Dépasse la dette (${fmt(fiche.reste_a_payer)} F)`); return; }
+    if (montant > fiche.reste_a_payer) { onStatut(`⚠️ Dépasse la dette (${fmt(fiche.reste_a_payer)})`); return; }
 
     const nouveau = fiche.reste_a_payer - montant;
 
@@ -60,7 +60,7 @@ export default function Credits({ credits, kpi, boutiqueId, onRefresh, onStatut,
       onStatut(`✅ Crédit de ${fiche.client} entièrement soldé !`);
     } else {
       await supabase.from("credits").update({ avance: fiche.avance + montant, reste_a_payer: nouveau }).eq("id", creditId);
-      onStatut(`✅ Versement noté. Reste : ${fmt(nouveau)} F`);
+      onStatut(`✅ Versement noté. Reste : ${fmt(nouveau)}`);
     }
 
     setMontantsRembours(prev => ({ ...prev, [creditId]: "" }));
@@ -76,13 +76,13 @@ export default function Credits({ credits, kpi, boutiqueId, onRefresh, onStatut,
             <div style={{ color: C.red, fontWeight: "bold", fontSize: 13 }}>
               ⏰ {enRetard.length} client(s) en retard (+{SEUIL_RETARD}j)
             </div>
-            <span style={{ color: C.red, fontWeight: "bold", fontSize: 12 }}>{fmt(totalRetard)} F</span>
+            <span style={{ color: C.red, fontWeight: "bold", fontSize: 12 }}>{fmt(totalRetard)}</span>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 10 }}>
             {enRetard.slice(0, 4).map(c => (
               <div key={c.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
                 <span style={{ color: C.text }}>{c.client} <span style={{ color: C.muted }}>· {ageEnJours(c)}j</span></span>
-                <span style={{ color: C.red, fontWeight: "bold" }}>{fmt(c.reste_a_payer)} F</span>
+                <span style={{ color: C.red, fontWeight: "bold" }}>{fmt(c.reste_a_payer)}</span>
               </div>
             ))}
             {enRetard.length > 4 && <div style={{ fontSize: 11, color: C.muted, fontStyle: "italic" }}>… +{enRetard.length - 4} autres</div>}
@@ -98,7 +98,7 @@ export default function Credits({ credits, kpi, boutiqueId, onRefresh, onStatut,
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
           <div style={{ color: C.yellow, fontWeight: "bold", fontSize: 13 }}>📒 {t("carnet_credits").toUpperCase()}</div>
           <span style={{ background: C.yellow + "22", color: C.yellow, border: `1px solid ${C.yellow}55`, borderRadius: 12, padding: "2px 8px", fontSize: 11, fontWeight: "bold" }}>
-            {credits.length} client(s) · {fmt(kpi.dettes)} F
+            {credits.length} client(s) · {fmt(kpi.dettes)}
           </span>
         </div>
 
@@ -114,11 +114,11 @@ export default function Credits({ credits, kpi, boutiqueId, onRefresh, onStatut,
                   <div>
                     <div style={{ fontWeight: "bold", color: C.text, fontSize: 14 }}>{c.client}</div>
                     <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{c.article}</div>
-                    <div style={{ fontSize: 10, color: C.muted }}>Total : {fmt(c.total)} F · Avance : {fmt(c.avance)} F</div>
+                    <div style={{ fontSize: 10, color: C.muted }}>Total : {fmt(c.total)} · Avance : {fmt(c.avance)}</div>
                   </div>
                   <div style={{ textAlign: "right" }}>
                     <span style={{ background: C.red + "22", color: C.red, border: `1px solid ${C.red}55`, borderRadius: 12, padding: "2px 8px", fontSize: 11, fontWeight: "bold" }}>
-                      Reste : {fmt(c.reste_a_payer)} F
+                      Reste : {fmt(c.reste_a_payer)}
                     </span>
                     {c.date && <div style={{ fontSize: 9, color: C.muted, marginTop: 4 }}>{c.date}</div>}
                     {(c.reste_a_payer || 0) > 0 && ageEnJours(c) >= SEUIL_RETARD && (
