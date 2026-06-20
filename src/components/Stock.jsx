@@ -1,9 +1,18 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { C, fmt } from "../theme";
 import { t } from "../i18n";
 import { supabase } from "../supabase";
 import Scanner from "./Scanner";
 import ImportStock from "./ImportStock";
+
+const TRIS = [
+  { id: "stock", label: "Stock ↑" },
+  { id: "stock_desc", label: "Stock ↓" },
+  { id: "az", label: "A → Z" },
+  { id: "za", label: "Z → A" },
+  { id: "prix_desc", label: "Prix ↓" },
+  { id: "prix", label: "Prix ↑" },
+];
 
 export default function Stock({ produits, boutiqueId, onRefresh, fournisseurs = [], onTransfer, voirPrixAchat = true, peutModifier = true, onAudit, onStatut }) {
   const [recherche, setRecherche] = useState("");
@@ -12,19 +21,43 @@ export default function Stock({ produits, boutiqueId, onRefresh, fournisseurs = 
   const [sauvegarde, setSauvegarde] = useState(false);
   const [scanOuvert, setScanOuvert] = useState(false);
   const [importOuvert, setImportOuvert] = useState(false);
+  const [tri, setTri] = useState("stock");
+  const [categorie, setCategorie] = useState("toutes");
 
-  const produitsFiltres = produits.filter(p => {
-    if (!recherche) return true;
+  // Catégories existantes (pour les boutons de filtre)
+  const categories = useMemo(() => {
+    const set = new Set();
+    produits.forEach(p => { if (p.categorie) set.add(p.categorie); });
+    return [...set].sort((a, b) => a.localeCompare(b));
+  }, [produits]);
+
+  const produitsFiltres = useMemo(() => {
     const q = recherche.toLowerCase();
-    return p.nom?.toLowerCase().includes(q)
-      || p.reference_oem?.toLowerCase().includes(q)
-      || p.compatibilite?.toLowerCase().includes(q)
-      || p.code_barre?.toLowerCase().includes(q);
-  }).sort((a, b) => (a.stock || 0) - (b.stock || 0));
+    const liste = produits.filter(p => {
+      const okCat = categorie === "toutes"
+        || (categorie === "_sans" ? !p.categorie : p.categorie === categorie);
+      if (!okCat) return false;
+      if (!recherche) return true;
+      return p.nom?.toLowerCase().includes(q)
+        || p.reference_oem?.toLowerCase().includes(q)
+        || p.compatibilite?.toLowerCase().includes(q)
+        || p.categorie?.toLowerCase().includes(q)
+        || p.code_barre?.toLowerCase().includes(q);
+    });
+    const cmp = {
+      stock: (a, b) => (a.stock || 0) - (b.stock || 0),
+      stock_desc: (a, b) => (b.stock || 0) - (a.stock || 0),
+      az: (a, b) => (a.nom || "").localeCompare(b.nom || ""),
+      za: (a, b) => (b.nom || "").localeCompare(a.nom || ""),
+      prix: (a, b) => (a.prix_vente || 0) - (b.prix_vente || 0),
+      prix_desc: (a, b) => (b.prix_vente || 0) - (a.prix_vente || 0),
+    }[tri] || (() => 0);
+    return [...liste].sort(cmp);
+  }, [produits, recherche, categorie, tri]);
 
   const startEdit = (p) => {
     setEditId(p.id);
-    setEditData({ nom: p.nom, prixAchat: p.prix_achat, prixVente: p.prix_vente, stock: p.stock, seuil: p.seuil_alerte ?? 2, fournisseurId: p.fournisseur_id || "", codeBarre: p.code_barre || "", refOem: p.reference_oem || "", compat: p.compatibilite || "", frais: p.frais_unitaire || 0, carton: p.unites_par_carton || 1 });
+    setEditData({ nom: p.nom, categorie: p.categorie || "", prixAchat: p.prix_achat, prixVente: p.prix_vente, stock: p.stock, seuil: p.seuil_alerte ?? 2, fournisseurId: p.fournisseur_id || "", codeBarre: p.code_barre || "", refOem: p.reference_oem || "", compat: p.compatibilite || "", frais: p.frais_unitaire || 0, carton: p.unites_par_carton || 1 });
   };
 
   const saveEdit = async () => {
@@ -32,6 +65,7 @@ export default function Stock({ produits, boutiqueId, onRefresh, fournisseurs = 
     const ancien = produits.find(p => p.id === editId) || null;
     const nouveau = {
       nom: editData.nom,
+      categorie: (editData.categorie || "").trim() || null,
       prix_achat: parseInt(editData.prixAchat) || 0,
       prix_vente: parseInt(editData.prixVente) || 0,
       stock: parseInt(editData.stock) || 0,
@@ -80,11 +114,36 @@ export default function Stock({ produits, boutiqueId, onRefresh, fournisseurs = 
         </button>
       )}
 
-      <div style={{ marginBottom: 12 }}>
+      <div style={{ marginBottom: 8 }}>
         <input type="text" placeholder={`🔍 ${t("rechercher_produit")}`}
           value={recherche} onChange={e => setRecherche(e.target.value)}
           style={{ width: "100%", padding: "10px 14px", background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, color: C.text, fontSize: 13, boxSizing: "border-box" }} />
       </div>
+
+      {/* TRI */}
+      <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 6, marginBottom: 6 }}>
+        <span style={{ fontSize: 11, color: C.muted, alignSelf: "center", flexShrink: 0 }}>Trier :</span>
+        {TRIS.map(o => (
+          <button key={o.id} onClick={() => setTri(o.id)}
+            style={{ flexShrink: 0, padding: "5px 10px", borderRadius: 14, fontSize: 11, fontWeight: "bold", cursor: "pointer", whiteSpace: "nowrap",
+              border: `1px solid ${tri === o.id ? C.green : C.border}`, background: tri === o.id ? C.green + "22" : "transparent", color: tri === o.id ? C.green : C.muted }}>
+            {o.label}
+          </button>
+        ))}
+      </div>
+
+      {/* FILTRE CATÉGORIE */}
+      {categories.length > 0 && (
+        <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 6, marginBottom: 12 }}>
+          {[{ id: "toutes", l: "Toutes" }, ...categories.map(c => ({ id: c, l: c })), { id: "_sans", l: "Sans catégorie" }].map(o => (
+            <button key={o.id} onClick={() => setCategorie(o.id)}
+              style={{ flexShrink: 0, padding: "5px 10px", borderRadius: 14, fontSize: 11, fontWeight: "bold", cursor: "pointer", whiteSpace: "nowrap",
+                border: `1px solid ${categorie === o.id ? C.blue : C.border}`, background: categorie === o.id ? C.blue + "22" : "transparent", color: categorie === o.id ? C.blue : C.muted }}>
+              {o.l}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div style={{ background: C.surface, borderRadius: 8, border: `1px solid ${C.border}`, padding: 14 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
@@ -104,6 +163,9 @@ export default function Stock({ produits, boutiqueId, onRefresh, fournisseurs = 
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 <input value={editData.nom} onChange={e => setEditData(d => ({ ...d, nom: e.target.value }))}
                   style={inputStyle} placeholder="Nom" />
+                <input value={editData.categorie} onChange={e => setEditData(d => ({ ...d, categorie: e.target.value }))}
+                  style={inputStyle} placeholder="Catégorie (ex: Filtres, Freinage...)" list="cats-stock" />
+                <datalist id="cats-stock">{categories.map(c => <option key={c} value={c} />)}</datalist>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6 }}>
                   <input type="number" value={editData.prixAchat} onChange={e => setEditData(d => ({ ...d, prixAchat: e.target.value }))}
                     style={inputStyle} placeholder="Achat" />
@@ -151,7 +213,10 @@ export default function Stock({ produits, boutiqueId, onRefresh, fournisseurs = 
             ) : (
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div>
-                  <div style={{ fontWeight: "bold", color: C.text, fontSize: 13 }}>{p.nom}</div>
+                  <div style={{ fontWeight: "bold", color: C.text, fontSize: 13 }}>
+                    {p.nom}
+                    {p.categorie && <span style={{ marginLeft: 6, fontSize: 9, fontWeight: "bold", color: C.blue, background: C.blue + "18", border: `1px solid ${C.blue}33`, borderRadius: 8, padding: "1px 6px" }}>{p.categorie}</span>}
+                  </div>
                   <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>
                     {voirPrixAchat && <>Achat : {fmt(p.prix_achat)} · </>}Vente : {fmt(p.prix_vente)}
                   </div>

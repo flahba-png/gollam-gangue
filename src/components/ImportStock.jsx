@@ -10,6 +10,7 @@ const CHAMPS = [
   { id: "prix_achat", label: "Prix d'achat", num: true, mots: ["achat", "cout", "coût", "revient"] },
   { id: "prix_vente", label: "Prix de vente", num: true, mots: ["vente", "prix", "pu", "tarif"] },
   { id: "stock", label: "Quantité / Stock", num: true, mots: ["stock", "quantite", "quantité", "qte", "qté", "dispo"] },
+  { id: "categorie", label: "Catégorie", mots: ["categorie", "catégorie", "famille", "rayon", "type"] },
   { id: "reference_oem", label: "Référence (OEM)", mots: ["ref", "référence", "reference", "oem"] },
   { id: "code_barre", label: "Code-barres", mots: ["code", "barre", "barcode", "ean"] },
 ];
@@ -70,6 +71,7 @@ export default function ImportStock({ produits, boutiqueId, onRefresh, onStatut,
         prix_achat: mapping.prix_achat != null ? toNum(r[mapping.prix_achat]) : 0,
         prix_vente: mapping.prix_vente != null ? toNum(r[mapping.prix_vente]) : 0,
         stock: mapping.stock != null ? toNum(r[mapping.stock]) : 0,
+        categorie: mapping.categorie != null ? String(r[mapping.categorie] ?? "").trim() || null : null,
         reference_oem: mapping.reference_oem != null ? String(r[mapping.reference_oem] ?? "").trim() || null : null,
         code_barre: mapping.code_barre != null ? String(r[mapping.code_barre] ?? "").trim() || null : null,
       };
@@ -80,6 +82,7 @@ export default function ImportStock({ produits, boutiqueId, onRefresh, onStatut,
         ex.stock += obj.stock;
         if (!ex.prix_achat) ex.prix_achat = obj.prix_achat;
         if (!ex.prix_vente) ex.prix_vente = obj.prix_vente;
+        ex.categorie = ex.categorie || obj.categorie;
         ex.reference_oem = ex.reference_oem || obj.reference_oem;
         ex.code_barre = ex.code_barre || obj.code_barre;
       } else {
@@ -100,7 +103,7 @@ export default function ImportStock({ produits, boutiqueId, onRefresh, onStatut,
     try {
       // 1. Nouveaux produits : insertion en lot
       const nouveaux = prepares.filter(p => !p.existant)
-        .map(p => ({ boutique_id: boutiqueId, nom: p.nom, prix_achat: p.prix_achat, prix_vente: p.prix_vente, stock: p.stock, reference_oem: p.reference_oem, code_barre: p.code_barre }));
+        .map(p => ({ boutique_id: boutiqueId, nom: p.nom, prix_achat: p.prix_achat, prix_vente: p.prix_vente, stock: p.stock, categorie: p.categorie, reference_oem: p.reference_oem, code_barre: p.code_barre }));
       for (let i = 0; i < nouveaux.length; i += 200) {
         const lot = nouveaux.slice(i, i + 200);
         const { error } = await supabase.from("produits").insert(lot);
@@ -116,6 +119,7 @@ export default function ImportStock({ produits, boutiqueId, onRefresh, onStatut,
           const patch = { stock: p.stock };
           if (p.prix_achat) patch.prix_achat = p.prix_achat;
           if (p.prix_vente) patch.prix_vente = p.prix_vente;
+          if (p.categorie) patch.categorie = p.categorie;
           if (p.reference_oem) patch.reference_oem = p.reference_oem;
           if (p.code_barre) patch.code_barre = p.code_barre;
           const { error } = await supabase.from("produits").update(patch).eq("id", exist.id);

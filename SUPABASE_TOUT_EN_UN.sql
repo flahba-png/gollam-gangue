@@ -447,4 +447,7 @@ alter table boutiques add column if not exists cameras jsonb default '[]'::jsonb
 -- Stocké en data URL (image redimensionnée côté app) → reçus white-label.
 alter table boutiques add column if not exists logo text;
 
+-- ========== MIGRATION 26 : catégorie des produits (tri/filtre catalogue) ==========
+alter table produits add column if not exists categorie text;
+
 -- ✅ Terminé. Toutes les tables, colonnes et règles de sécurité sont en place.
