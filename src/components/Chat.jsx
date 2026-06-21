@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from "react"
 import { C } from "../theme";
 import { t } from "../i18n";
 import { supabase } from "../supabase";
+import { demarrerEnregistrement, arreterEnregistrement } from "../recorder";
 
 // Chat d'équipe : canal groupe + discussions privées (DM), par boutique
 export default function Chat({ boutiqueActive, userId, monNom, onStatut }) {
@@ -13,9 +14,6 @@ export default function Chat({ boutiqueActive, userId, monNom, onStatut }) {
   const [envoiMedia, setEnvoiMedia] = useState(false);
   const finRef = useRef(null);
   const fileRef = useRef(null);
-  const recRef = useRef(null);     // MediaRecorder
-  const chunksRef = useRef([]);
-  const annuleRef = useRef(false);
 
   // Participants pour les DM : le patron + les employés actifs (sauf moi)
   const participants = useMemo(() => {
@@ -101,25 +99,13 @@ export default function Chat({ boutiqueActive, userId, monNom, onStatut }) {
   };
 
   const demarrerVocal = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mr = new MediaRecorder(stream);
-      chunksRef.current = []; annuleRef.current = false;
-      mr.ondataavailable = (ev) => { if (ev.data && ev.data.size) chunksRef.current.push(ev.data); };
-      mr.onstop = () => {
-        stream.getTracks().forEach(t => t.stop());
-        if (annuleRef.current) return;
-        const mime = mr.mimeType || "audio/webm";
-        const blob = new Blob(chunksRef.current, { type: mime });
-        uploadEtEnvoyer(blob, "audio", mime.includes("mp4") ? "mp4" : mime.includes("ogg") ? "ogg" : "webm");
-      };
-      recRef.current = mr; mr.start(); setEnregistre(true);
-    } catch { onStatut && onStatut("🎤 Accès au micro refusé."); }
+    try { await demarrerEnregistrement(); setEnregistre(true); }
+    catch { onStatut && onStatut("🎤 Accès au micro refusé."); }
   };
-  const arreterVocal = (annuler) => {
-    annuleRef.current = !!annuler;
-    if (recRef.current && recRef.current.state !== "inactive") recRef.current.stop();
+  const arreterVocal = async (annuler) => {
     setEnregistre(false);
+    const blob = await arreterEnregistrement(annuler);
+    if (blob) uploadEtEnvoyer(blob, "audio", "wav");
   };
 
   const heureDe = (iso) => { try { return new Date(iso).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }); } catch { return ""; } };
