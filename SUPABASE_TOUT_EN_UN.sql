@@ -496,4 +496,19 @@ create policy "fidrachat_membre" on fidelite_rachats for all
     or boutique_id in (select boutique_id from membres where user_id = auth.uid())
   );
 
+-- ========== MIGRATION 29 : médias du chat (photos + notes vocales) ==========
+alter table messages add column if not exists media_url text;
+alter table messages add column if not exists media_type text;  -- 'image' | 'audio'
+
+-- Espace de stockage des fichiers du chat
+insert into storage.buckets (id, name, public)
+values ('chat-media', 'chat-media', true)
+on conflict (id) do nothing;
+
+-- Lecture publique (URL aléatoire non devinable), upload réservé aux connectés
+drop policy if exists "chatmedia_read" on storage.objects;
+create policy "chatmedia_read" on storage.objects for select using (bucket_id = 'chat-media');
+drop policy if exists "chatmedia_insert" on storage.objects;
+create policy "chatmedia_insert" on storage.objects for insert to authenticated with check (bucket_id = 'chat-media');
+
 -- ✅ Terminé. Toutes les tables, colonnes et règles de sécurité sont en place.

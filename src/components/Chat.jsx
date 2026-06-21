@@ -9,7 +9,13 @@ export default function Chat({ boutiqueActive, userId, monNom, onStatut }) {
   const [membres, setMembres] = useState([]);
   const [canal, setCanal] = useState("groupe"); // "groupe" ou un user_id (DM)
   const [texte, setTexte] = useState("");
+  const [enregistre, setEnregistre] = useState(false);
+  const [envoiMedia, setEnvoiMedia] = useState(false);
   const finRef = useRef(null);
+  const fileRef = useRef(null);
+  const recRef = useRef(null);     // MediaRecorder
+  const chunksRef = useRef([]);
+  const annuleRef = useRef(false);
 
   // Participants pour les DM : le patron + les employés actifs (sauf moi)
   const participants = useMemo(() => {
@@ -69,6 +75,53 @@ export default function Chat({ boutiqueActive, userId, monNom, onStatut }) {
     charger();
   };
 
+  // Upload d'un fichier (photo ou audio) puis envoi du message média
+  const uploadEtEnvoyer = async (blob, type, ext) => {
+    if (!boutiqueActive || !blob) return;
+    setEnvoiMedia(true);
+    try {
+      const chemin = `${boutiqueActive.id}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
+      const { error: upErr } = await supabase.storage.from("chat-media").upload(chemin, blob, { contentType: blob.type || undefined });
+      if (upErr) throw upErr;
+      const { data: pub } = supabase.storage.from("chat-media").getPublicUrl(chemin);
+      const { error } = await supabase.from("messages").insert({
+        boutique_id: boutiqueActive.id, expediteur_id: userId, expediteur_nom: monNom, texte: "",
+        media_url: pub.publicUrl, media_type: type,
+        destinataire_id: canal === "groupe" ? null : canal,
+      });
+      if (error) throw error;
+      charger();
+    } catch (e) { onStatut && onStatut("❌ Envoi média : " + (e.message || e)); }
+    setEnvoiMedia(false);
+  };
+
+  const choisirPhoto = (e) => {
+    const f = e.target.files[0]; e.target.value = "";
+    if (f) uploadEtEnvoyer(f, "image", (f.name.split(".").pop() || "jpg").toLowerCase());
+  };
+
+  const demarrerVocal = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mr = new MediaRecorder(stream);
+      chunksRef.current = []; annuleRef.current = false;
+      mr.ondataavailable = (ev) => { if (ev.data && ev.data.size) chunksRef.current.push(ev.data); };
+      mr.onstop = () => {
+        stream.getTracks().forEach(t => t.stop());
+        if (annuleRef.current) return;
+        const mime = mr.mimeType || "audio/webm";
+        const blob = new Blob(chunksRef.current, { type: mime });
+        uploadEtEnvoyer(blob, "audio", mime.includes("mp4") ? "mp4" : mime.includes("ogg") ? "ogg" : "webm");
+      };
+      recRef.current = mr; mr.start(); setEnregistre(true);
+    } catch { onStatut && onStatut("🎤 Accès au micro refusé."); }
+  };
+  const arreterVocal = (annuler) => {
+    annuleRef.current = !!annuler;
+    if (recRef.current && recRef.current.state !== "inactive") recRef.current.stop();
+    setEnregistre(false);
+  };
+
   const heureDe = (iso) => { try { return new Date(iso).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }); } catch { return ""; } };
 
   const ongletStyle = (actif) => ({
@@ -101,7 +154,15 @@ export default function Chat({ boutiqueActive, userId, monNom, onStatut }) {
             <div key={m.id} style={{ display: "flex", justifyContent: moi ? "flex-end" : "flex-start", marginBottom: 8 }}>
               <div style={{ maxWidth: "78%", background: moi ? C.green + "22" : C.surface2, border: `1px solid ${moi ? C.green + "44" : C.border}`, borderRadius: 12, padding: "7px 11px" }}>
                 {!moi && canal === "groupe" && <div style={{ color: C.blue, fontSize: 10, fontWeight: "bold", marginBottom: 2 }}>{m.expediteur_nom || "?"}</div>}
-                <div style={{ color: C.text, fontSize: 13, wordBreak: "break-word" }}>{m.texte}</div>
+                {m.media_type === "image" ? (
+                  <a href={m.media_url} target="_blank" rel="noopener">
+                    <img src={m.media_url} alt="photo" style={{ maxWidth: "100%", maxHeight: 220, borderRadius: 8, display: "block" }} />
+                  </a>
+                ) : m.media_type === "audio" ? (
+                  <audio controls src={m.media_url} style={{ maxWidth: 220, height: 36 }} />
+                ) : (
+                  <div style={{ color: C.text, fontSize: 13, wordBreak: "break-word" }}>{m.texte}</div>
+                )}
                 <div style={{ color: C.muted, fontSize: 9, textAlign: "right", marginTop: 2 }}>{heureDe(m.created_at)}</div>
               </div>
             </div>
@@ -110,12 +171,27 @@ export default function Chat({ boutiqueActive, userId, monNom, onStatut }) {
         <div ref={finRef} />
       </div>
 
-      <form onSubmit={envoyer} style={{ display: "flex", gap: 8 }}>
-        <input value={texte} onChange={(e) => setTexte(e.target.value)}
-          placeholder={canal === "groupe" ? t("ecrire_message") : `🔒 Message privé à ${participants.find(p => p.id === canal)?.nom || ""}...`}
-          style={{ flex: 1, padding: "11px 14px", background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 20, color: C.text, fontSize: 13, outline: "none" }} />
-        <button type="submit" style={{ width: 44, height: 44, background: C.green, color: C.bg, border: "none", borderRadius: "50%", fontSize: 16, fontWeight: "bold", cursor: "pointer" }}>➤</button>
-      </form>
+      <input ref={fileRef} type="file" accept="image/*" onChange={choisirPhoto} style={{ display: "none" }} />
+
+      {enregistre ? (
+        <div style={{ display: "flex", gap: 8, alignItems: "center", background: C.surface2, borderRadius: 24, padding: "8px 12px" }}>
+          <span style={{ width: 10, height: 10, borderRadius: "50%", background: C.red, animation: "pulse 1s infinite" }} />
+          <span style={{ flex: 1, color: C.red, fontSize: 13, fontWeight: "bold" }}>🎤 Enregistrement… parle puis envoie</span>
+          <button onClick={() => arreterVocal(true)} title="Annuler" style={{ background: "transparent", border: "none", color: C.muted, fontSize: 18, cursor: "pointer" }}>✕</button>
+          <button onClick={() => arreterVocal(false)} title="Envoyer" style={{ width: 42, height: 42, background: C.green, color: C.bg, border: "none", borderRadius: "50%", fontSize: 16, cursor: "pointer" }}>➤</button>
+        </div>
+      ) : (
+        <form onSubmit={envoyer} style={{ display: "flex", gap: 6, alignItems: "center" }}>
+          <button type="button" onClick={() => fileRef.current?.click()} disabled={envoiMedia} title="Envoyer une photo"
+            style={{ width: 40, height: 40, flexShrink: 0, background: C.surface2, color: C.blue, border: `1px solid ${C.border}`, borderRadius: "50%", fontSize: 16, cursor: "pointer" }}>📷</button>
+          <button type="button" onClick={demarrerVocal} disabled={envoiMedia} title="Note vocale"
+            style={{ width: 40, height: 40, flexShrink: 0, background: C.surface2, color: C.green, border: `1px solid ${C.border}`, borderRadius: "50%", fontSize: 16, cursor: "pointer" }}>🎤</button>
+          <input value={texte} onChange={(e) => setTexte(e.target.value)}
+            placeholder={envoiMedia ? "Envoi du média…" : canal === "groupe" ? t("ecrire_message") : `🔒 Message privé…`}
+            style={{ flex: 1, minWidth: 0, padding: "11px 14px", background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 20, color: C.text, fontSize: 13, outline: "none" }} />
+          <button type="submit" style={{ width: 44, height: 44, flexShrink: 0, background: C.green, color: C.bg, border: "none", borderRadius: "50%", fontSize: 16, fontWeight: "bold", cursor: "pointer" }}>➤</button>
+        </form>
+      )}
     </div>
   );
 }
