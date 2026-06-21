@@ -54,16 +54,17 @@ export default function SaisieForm({ produits, onSubmit, chargement, estEntrepot
         copie[i] = { ...copie[i], qte: copie[i].qte + q };
         return copie;
       }
-      return [...prev, { produitId: p.id, nom: p.nom, qte: q, pu: prix, stock: p.stock || 0 }];
+      return [...prev, { produitId: p.id, nom: p.nom, qte: q, pu: prix, remise: 0, stock: p.stock || 0 }];
     });
     setProduitId(""); setQuantite("1"); setPrixUnit("");
   };
 
   const retirerLigne = (id) => setPanier(prev => prev.filter(l => l.produitId !== id));
   const majQte = (id, q) => setPanier(prev => prev.map(l => l.produitId === id ? { ...l, qte: Math.max(1, parseInt(q) || 1) } : l));
+  const majRemise = (id, v) => setPanier(prev => prev.map(l => l.produitId === id ? { ...l, remise: Math.max(0, Math.min(parseInt(v) || 0, l.pu * l.qte)) } : l));
 
   const totalPanier = panier.reduce((s, l) => s + l.qte * l.pu, 0);
-  const remiseF = Math.min(parseInt(remise) || 0, totalPanier);
+  const remiseF = panier.reduce((s, l) => s + (parseInt(l.remise) || 0), 0);
   const totalNet = totalPanier - remiseF;
 
   // Scan : ajoute au panier (vente/crédit) ou sélectionne (stock)
@@ -234,29 +235,34 @@ export default function SaisieForm({ produits, onSubmit, chargement, estEntrepot
           <div style={{ background: C.surface2, borderRadius: 8, border: `1px solid ${C.border}`, padding: 10, marginBottom: 12 }}>
             <div style={{ fontSize: 10, color: C.muted, fontWeight: "bold", marginBottom: 8 }}>🛒 PANIER ({panier.length})</div>
             {panier.length === 0 && <div style={{ color: C.muted, fontSize: 12, fontStyle: "italic" }}>Aucun article. Ajoute des produits ci-dessus.</div>}
-            {panier.map(l => (
-              <div key={l.produitId} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderBottom: `1px solid ${C.border}` }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ color: C.text, fontSize: 13 }}>{l.nom}</div>
-                  <div style={{ color: C.muted, fontSize: 10 }}>{fmt(l.pu)} × {l.qte} = {fmt(l.pu * l.qte)}</div>
-                </div>
-                <input type="number" min="1" value={l.qte} onChange={e => majQte(l.produitId, e.target.value)}
-                  style={{ width: 46, padding: "5px", background: C.surface, border: `1px solid ${C.border}`, borderRadius: 6, color: C.text, fontSize: 12, textAlign: "center" }} />
-                <button type="button" onClick={() => retirerLigne(l.produitId)} style={{ background: C.red + "22", color: C.red, border: `1px solid ${C.red}44`, padding: "4px 8px", borderRadius: 6, fontSize: 11, cursor: "pointer" }}>✕</button>
-              </div>
-            ))}
             {panier.length > 0 && (
-              <>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
-                  <span style={{ color: C.muted, fontSize: 12 }}>Remise (F)</span>
-                  <input type="number" inputMode="numeric" value={remise} onChange={e => setRemise(e.target.value)} placeholder="0"
-                    style={{ width: 90, padding: "5px 8px", background: C.surface, border: `1px solid ${C.border}`, borderRadius: 6, color: C.yellow, fontSize: 12, textAlign: "right" }} />
+              <div style={{ display: "flex", gap: 6, fontSize: 9, color: C.muted, fontWeight: "bold", padding: "0 0 4px", letterSpacing: 0.3 }}>
+                <span style={{ flex: 1 }}>ARTICLE</span>
+                <span style={{ width: 46, textAlign: "center" }}>QTÉ</span>
+                <span style={{ width: 74, textAlign: "center" }}>REMISE</span>
+                <span style={{ width: 18 }} />
+              </div>
+            )}
+            {panier.map(l => {
+              const net = l.qte * l.pu - (parseInt(l.remise) || 0);
+              return (
+              <div key={l.produitId} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 0", borderBottom: `1px solid ${C.border}` }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ color: C.text, fontSize: 13, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{l.nom}</div>
+                  <div style={{ color: C.muted, fontSize: 10 }}>{fmt(l.pu)} × {l.qte}{(parseInt(l.remise) || 0) > 0 ? ` − ${fmt(l.remise)}` : ""} = <b style={{ color: C.green }}>{fmt(net)}</b></div>
                 </div>
-                <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8, fontSize: 14, fontWeight: "bold", color: C.text }}>
-                  <span>{remiseF > 0 ? "NET À PAYER" : "TOTAL"}</span>
-                  <span style={{ color: C.green }}>{fmt(totalNet)}</span>
-                </div>
-              </>
+                <input type="number" min="1" value={l.qte} onChange={e => majQte(l.produitId, e.target.value)} title="Quantité"
+                  style={{ width: 46, padding: "5px", background: C.surface, border: `1px solid ${C.border}`, borderRadius: 6, color: C.text, fontSize: 12, textAlign: "center" }} />
+                <input type="number" min="0" value={l.remise} onChange={e => majRemise(l.produitId, e.target.value)} title="Remise sur cet article" placeholder="0"
+                  style={{ width: 74, padding: "5px", background: C.surface, border: `1px solid ${C.border}`, borderRadius: 6, color: (parseInt(l.remise) || 0) > 0 ? C.yellow : C.text, fontSize: 12, textAlign: "right" }} />
+                <button type="button" onClick={() => retirerLigne(l.produitId)} style={{ background: C.red + "22", color: C.red, border: `1px solid ${C.red}44`, padding: "4px 6px", borderRadius: 6, fontSize: 11, cursor: "pointer" }}>✕</button>
+              </div>
+            );})}
+            {panier.length > 0 && (
+              <div style={{ display: "flex", justifyContent: "space-between", marginTop: 10, fontSize: 14, fontWeight: "bold", color: C.text }}>
+                <span>{remiseF > 0 ? `NET À PAYER (remise ${fmt(remiseF)})` : "TOTAL"}</span>
+                <span style={{ color: C.green }}>{fmt(totalNet)}</span>
+              </div>
             )}
           </div>
 
