@@ -99,6 +99,7 @@ export default function SaisieForm({ produits, onSubmit, chargement, estEntrepot
 
     // vente / crédit : panier
     if (panier.length === 0) { setScanMsg("⚠️ Ajoute au moins un article au panier."); return; }
+    if (totalPanier <= 0) { setScanMsg("⚠️ Le total est de 0 F — vérifie les prix."); return; }
     onSubmit({
       action: "vente",
       lignes: panier.map(l => ({ nom: l.nom, quantite: l.qte, prixVente: l.pu })),
@@ -218,19 +219,15 @@ export default function SaisieForm({ produits, onSubmit, chargement, estEntrepot
             <div style={{ display: "flex", gap: 6 }}>
               <div style={{ flex: 1 }}>
                 <ProduitSelect
-                  produits={produits} value={produitId}
-                  placeholder="Rechercher un produit..."
-                  onSelect={p => { setProduitId(p ? String(p.id) : ""); if (p) setPrixUnit(String(p.prix_vente || "")); }}
+                  produits={produits} value=""
+                  placeholder="Rechercher un produit à ajouter…"
+                  onSelect={p => { if (p) { ajouterAuPanier(p, 1, p.prix_vente || 0); setScanMsg(`✅ ${p.nom} ajouté`); setTimeout(() => setScanMsg(""), 1500); } }}
                 />
               </div>
               <button type="button" onClick={() => setScanOuvert(true)} title="Scanner" style={scanBtn}>📷</button>
             </div>
+            <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>Choisis un produit → il s'ajoute au panier (quantité modifiable ci-dessous).</div>
             {scanMsg && <div style={{ fontSize: 11, marginTop: 4, color: scanMsg.startsWith("✅") ? C.green : scanMsg.startsWith("⚠️") ? C.yellow : C.red }}>{scanMsg}</div>}
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: 8, marginBottom: 12, alignItems: "end" }}>
-            <div><label style={labelStyle}>{t("quantite").toUpperCase()}</label><input type="number" inputMode="numeric" min="1" value={quantite} onChange={e => setQuantite(e.target.value)} style={inputStyle} /></div>
-            <div><label style={labelStyle}>{t("prix_unitaire").toUpperCase()}</label><input type="number" inputMode="numeric" value={prixUnit} onChange={e => setPrixUnit(e.target.value)} placeholder="0" style={inputStyle} /></div>
-            <button type="button" onClick={() => ajouterAuPanier()} style={{ padding: "9px 14px", background: C.green + "22", color: C.green, border: `1px solid ${C.green}55`, borderRadius: 8, fontWeight: "bold", cursor: "pointer", fontSize: 13 }}>+ Ajouter</button>
           </div>
 
           {/* PANIER */}
@@ -299,10 +296,16 @@ export default function SaisieForm({ produits, onSubmit, chargement, estEntrepot
         </div>
       )}
 
-      <button type="submit" disabled={chargement}
-        style={{ width: "100%", padding: 12, marginTop: 4, background: chargement ? C.muted : C.green, color: C.bg, border: "none", borderRadius: 8, fontWeight: "bold", fontSize: 14, cursor: chargement ? "not-allowed" : "pointer" }}>
-        {chargement ? "⏳..." : estPanier ? `✅ ${t("enregistrer_vente")}${totalPanier > 0 ? ` (${fmt(totalNet)})` : ""}` : `✅ ${t("enregistrer")}`}
-      </button>
+      {(() => {
+        const venteBloquee = estPanier && (panier.length === 0 || totalPanier <= 0);
+        const off = chargement || venteBloquee;
+        return (
+          <button type="submit" disabled={off}
+            style={{ width: "100%", padding: 12, marginTop: 4, background: off ? C.muted : C.green, color: C.bg, border: "none", borderRadius: 8, fontWeight: "bold", fontSize: 14, cursor: off ? "not-allowed" : "pointer", opacity: venteBloquee ? 0.7 : 1 }}>
+            {chargement ? "⏳..." : estPanier ? `✅ ${t("enregistrer_vente")}${totalPanier > 0 ? ` (${fmt(totalNet)})` : ""}` : `✅ ${t("enregistrer")}`}
+          </button>
+        );
+      })()}
     </form>
   );
 }
