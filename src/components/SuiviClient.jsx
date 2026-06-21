@@ -29,7 +29,27 @@ export default function SuiviClient({ credits, historique, boutiqueId, boutique,
   const [texte, setTexte] = useState("");
   const [plafonds, setPlafonds] = useState({}); // client(lower) -> plafond
   const [editPlaf, setEditPlaf] = useState("");
+  const [clientsManuels, setClientsManuels] = useState([]);
+  const [ajoutOuvert, setAjoutOuvert] = useState(false);
+  const [nvNom, setNvNom] = useState("");
+  const [nvPhone, setNvPhone] = useState("");
   const finRef = useRef(null);
+
+  const chargerClients = useCallback(async () => {
+    if (!boutiqueId) { setClientsManuels([]); return; }
+    const { data } = await supabase.from("clients").select("*").eq("boutique_id", boutiqueId);
+    setClientsManuels(data || []);
+  }, [boutiqueId]);
+
+  const ajouterClient = async () => {
+    const nom = nvNom.trim();
+    if (!nom || !boutiqueId) { onStatut && onStatut("⚠️ Donne au moins un nom."); return; }
+    const { error } = await supabase.from("clients").insert({ boutique_id: boutiqueId, nom, phone: nvPhone.trim() || null });
+    if (error) { onStatut && onStatut("❌ " + error.message); return; }
+    setNvNom(""); setNvPhone(""); setAjoutOuvert(false);
+    chargerClients();
+    onStatut && onStatut(`✅ Client « ${nom} » ajouté.`);
+  };
 
   // Config fidélité (portée par la boutique). Le patron l'active/règle.
   const fid = {
@@ -85,6 +105,7 @@ export default function SuiviClient({ credits, historique, boutiqueId, boutique,
     setPlafonds(map);
   }, [boutiqueId]);
   useEffect(() => { chargerPlafonds(); }, [chargerPlafonds]);
+  useEffect(() => { chargerClients(); }, [chargerClients]);
 
   const definirPlafond = async (nomClient) => {
     if (!boutiqueId) return;
@@ -118,8 +139,15 @@ export default function SuiviClient({ credits, historique, boutiqueId, boutique,
       const ts = new Date(h.created_at || `${h.date_iso}T${h.heure || "00:00"}`).getTime();
       if (ts > c.dernierTs) { c.dernierTs = ts; c.apercu = h.texte || ""; }
     });
+    // Clients ajoutés manuellement (apparaissent même sans achat)
+    clientsManuels.forEach(cl => {
+      if (!cl.nom) return;
+      const c = getC(cl.nom);
+      if (cl.phone && !c.phone) c.phone = cl.phone;
+      if (!c.apercu) c.apercu = "Nouveau client";
+    });
     return [...map.values()].sort((a, b) => b.dernierTs - a.dernierTs);
-  }, [credits, historique]);
+  }, [credits, historique, clientsManuels]);
 
   const filtres = clients.filter(c => !recherche || norm(c.nom).includes(norm(recherche)));
 
@@ -207,12 +235,32 @@ export default function SuiviClient({ credits, historique, boutiqueId, boutique,
             )}
           </div>
         )}
-        <div style={{ marginBottom: 12 }}>
+        <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
           <input type="text" placeholder="🔍 Rechercher un client..." value={recherche} onChange={e => setRecherche(e.target.value)}
-            style={{ width: "100%", padding: "11px 14px", background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, color: C.text, fontSize: 13, boxSizing: "border-box" }} />
+            style={{ flex: 1, padding: "11px 14px", background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, color: C.text, fontSize: 13, boxSizing: "border-box" }} />
+          <button onClick={() => setAjoutOuvert(o => !o)} title="Nouveau client"
+            style={{ flexShrink: 0, padding: "0 14px", background: C.green, color: C.bg, border: "none", borderRadius: 10, fontSize: 18, fontWeight: "bold", cursor: "pointer" }}>＋</button>
         </div>
+
+        {/* FORMULAIRE NOUVEAU CLIENT */}
+        {ajoutOuvert && (
+          <div style={{ background: C.surface, borderRadius: 10, border: `1px solid ${C.green}55`, padding: 12, marginBottom: 10 }}>
+            <div style={{ fontSize: 12, color: C.text, fontWeight: "bold", marginBottom: 8 }}>➕ Nouveau client</div>
+            <input value={nvNom} onChange={e => setNvNom(e.target.value)} placeholder="Nom du client"
+              style={{ width: "100%", boxSizing: "border-box", padding: "9px 12px", marginBottom: 8, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, color: C.text, fontSize: 13 }} />
+            <input type="tel" value={nvPhone} onChange={e => setNvPhone(e.target.value)} placeholder="📱 Téléphone (facultatif)"
+              style={{ width: "100%", boxSizing: "border-box", padding: "9px 12px", marginBottom: 8, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, color: C.text, fontSize: 13 }} />
+            <div style={{ display: "flex", gap: 8 }}>
+              <button onClick={() => { setAjoutOuvert(false); setNvNom(""); setNvPhone(""); }}
+                style={{ padding: "9px 14px", background: C.surface2, color: C.muted, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 13, cursor: "pointer" }}>Annuler</button>
+              <button onClick={ajouterClient}
+                style={{ flex: 1, padding: 9, background: C.green, color: C.bg, border: "none", borderRadius: 8, fontWeight: "bold", fontSize: 13, cursor: "pointer" }}>Enregistrer</button>
+            </div>
+          </div>
+        )}
+
         <div style={{ background: C.surface, borderRadius: 10, border: `1px solid ${C.border}`, overflow: "hidden" }}>
-          {filtres.length === 0 && <div style={{ color: C.muted, fontSize: 12, fontStyle: "italic", padding: 16, textAlign: "center" }}>Aucun client. Ils apparaissent dès une vente nominative ou un crédit.</div>}
+          {filtres.length === 0 && <div style={{ color: C.muted, fontSize: 12, fontStyle: "italic", padding: 16, textAlign: "center" }}>Aucun client. Ajoute-en un avec ＋, ou ils apparaissent dès une vente nominative / un crédit.</div>}
           {filtres.map((c, i) => (
             <div key={i} onClick={() => setClientSel(c)}
               style={{ display: "flex", alignItems: "center", gap: 12, padding: "11px 12px", borderBottom: i < filtres.length - 1 ? `1px solid ${C.border}` : "none", cursor: "pointer" }}>
