@@ -21,7 +21,7 @@ const jourLabel = (iso) => {
 };
 const heureDe = (iso) => { try { return new Date(iso).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }); } catch { return ""; } };
 
-export default function SuiviClient({ credits, historique, boutiqueId, boutique, monNom, onImprimer, onNouvelleVente, onStatut }) {
+export default function SuiviClient({ credits, historique, boutiqueId, boutique, monNom, onImprimer, onNouvelleVente, onDevis, onStatut }) {
   const [recherche, setRecherche] = useState("");
   const [clientSel, setClientSel] = useState(null);
   const [notes, setNotes] = useState([]);
@@ -227,11 +227,15 @@ export default function SuiviClient({ credits, historique, boutiqueId, boutique,
         <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
           <button onClick={() => onNouvelleVente && onNouvelleVente(clientSel.nom)}
             style={{ flex: 1, padding: "8px 0", background: C.green + "18", color: C.green, border: `1px solid ${C.green}44`, borderRadius: 8, fontSize: 12, fontWeight: "bold", cursor: "pointer" }}>
-            🛒 Vente / Crédit
+            🛒 Vente
+          </button>
+          <button onClick={() => onDevis && onDevis(clientSel.nom, clientSel.phone)}
+            style={{ flex: 1, padding: "8px 0", background: C.yellow + "18", color: C.yellow, border: `1px solid ${C.yellow}44`, borderRadius: 8, fontSize: 12, fontWeight: "bold", cursor: "pointer" }}>
+            📝 Devis
           </button>
           <button onClick={etatDeCompte}
             style={{ flex: 1, padding: "8px 0", background: C.blue + "18", color: C.blue, border: `1px solid ${C.blue}44`, borderRadius: 8, fontSize: 12, fontWeight: "bold", cursor: "pointer" }}>
-            📄 État de compte
+            📄 État
           </button>
         </div>
         <form onSubmit={envoyer} style={{ display: "flex", gap: 8 }}>

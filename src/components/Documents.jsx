@@ -6,7 +6,7 @@ import { t } from "../i18n";
 
 const PREFIX = { devis: "DEV", facture: "FAC", bon_livraison: "BL" };
 
-export default function Documents({ produits, boutiqueActive, boutique, credits = [], historique = [], onStatut }) {
+export default function Documents({ produits, boutiqueActive, boutique, credits = [], historique = [], onStatut, prefill, onPrefillDone }) {
   const TYPES = [
     { id: "devis", label: `📝 ${t("devis")}` },
     { id: "facture", label: `🧾 ${t("facture")}` },
@@ -53,6 +53,16 @@ export default function Documents({ produits, boutiqueActive, boutique, credits 
   }, [boutiqueActive]);
 
   useEffect(() => { charger(); }, [charger]);
+
+  // Préremplissage depuis un autre écran (ex: bouton Devis du Suivi Client)
+  useEffect(() => {
+    if (!prefill) return;
+    if (prefill.type) setType(prefill.type);
+    if (prefill.client) setClient(prefill.client);
+    if (prefill.phone) setClientPhone(prefill.phone);
+    setCreation(true);
+    onPrefillDone && onPrefillDone();
+  }, [prefill]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const reset = () => { setClient(""); setClientPhone(""); setLignes([]); setProduitId(""); setLibreNom(""); setQte("1"); setPu(""); setRemise(""); setValidite(""); setNotes(""); };
 

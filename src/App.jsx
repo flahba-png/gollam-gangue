@@ -21,10 +21,9 @@ import Admin from "./components/Admin";
 import Compte from "./components/Compte";
 import RechercheGlobale from "./components/RechercheGlobale";
 import Surveillance from "./components/Surveillance";
-import SuiviClient from "./components/SuiviClient";
+import Messages from "./components/Messages";
 import Onboarding, { onboardingVu } from "./components/Onboarding";
 import Documents from "./components/Documents";
-import Chat from "./components/Chat";
 import { bipVente, bipErreur } from "./feedback";
 import { ADMIN_EMAIL, DUREE_ESSAI_JOURS, ADMIN_WHATSAPP, PRIX_ABONNEMENT } from "./config";
 import { imprimerFacture, envoyerRecuWhatsApp } from "./receipt";
@@ -57,6 +56,7 @@ export default function App() {
   const [compteOuvert, setCompteOuvert] = useState(false);
   const [rechercheOuverte, setRechercheOuverte] = useState(false);
   const [surveillanceOuverte, setSurveillanceOuverte] = useState(false);
+  const [docPrefill, setDocPrefill] = useState(null);
   const [montrerOnboarding, setMontrerOnboarding] = useState(!onboardingVu());
   const [theme, setTheme] = useState(themeActuel());
   const [langue, setLangueState] = useState(langueActuelle());
@@ -659,9 +659,8 @@ export default function App() {
     { id: "fournisseurs", label: "🚚", title: t("reassort"), badge: produits.filter(p => (p.stock || 0) <= (p.seuil_alerte ?? 2)).length },
     { id: "credits", label: "📒", title: t("credits"), badge: credits.length },
     { id: "clients", label: "👥", title: t("clients") },
-    { id: "suivi", label: "📇", title: "Suivi client", badge: credits.length },
     { id: "documents", label: "🧾", title: t("documents") },
-    { id: "chat", label: "💬", title: t("chat") },
+    { id: "chat", label: "💬", title: "Messages", badge: credits.length },
     { id: "equipe", label: "🧑‍🤝‍🧑", title: t("equipe") },
     { id: "caisse", label: "🔒", title: t("caisse") },
     { id: "inventaire", label: "📋", title: t("inventaire") },
@@ -678,7 +677,6 @@ export default function App() {
     { id: "chat", label: "💬", title: t("chat") },
     perms.caisse_voir && { id: "caisse", label: "🔒", title: t("caisse") },
     { id: "clients", label: "👥", title: t("clients") },
-    { id: "suivi", label: "📇", title: "Suivi client" },
   ].filter(Boolean);
   const tabs = estPatron ? tabsPatron : tabsVendeur;
 
@@ -834,7 +832,6 @@ export default function App() {
         )}
         {onglet === "credits" && <Credits credits={credits} kpi={kpi} boutiqueId={boutiqueActive?.id} onRefresh={chargerDonnees} onStatut={setStatut} boutique={boutique} />}
         {onglet === "clients" && <Clients credits={credits} historique={historique} boutique={boutique} boutiqueId={vueGlobale ? null : boutiqueActive?.id} boutiqueActive={boutiqueActive} estPatron={estPatron} onRefresh={chargerDonnees} />}
-        {onglet === "suivi" && <SuiviClient credits={credits} historique={historique} boutiqueId={vueGlobale ? null : boutiqueActive?.id} boutique={boutique} monNom={monNom} onImprimer={h => imprimerFacture(h, boutique)} onNouvelleVente={() => { setOnglet("saisie"); setStatut("🛒 Enregistre la vente/crédit pour ce client."); }} onStatut={setStatut} />}
         {onglet === "documents" && (
           vueGlobale ? (
             <div style={{ padding: "0 12px" }}>
@@ -843,7 +840,7 @@ export default function App() {
               </div>
             </div>
           ) : (
-            <Documents produits={produits} boutiqueActive={boutiqueActive} boutique={boutique} credits={credits} historique={historique} onStatut={setStatut} />
+            <Documents produits={produits} boutiqueActive={boutiqueActive} boutique={boutique} credits={credits} historique={historique} onStatut={setStatut} prefill={docPrefill} onPrefillDone={() => setDocPrefill(null)} />
           )
         )}
         {onglet === "chat" && (
@@ -854,7 +851,12 @@ export default function App() {
               </div>
             </div>
           ) : (
-            <Chat boutiqueActive={boutiqueActive} userId={session.user.id} monNom={monNom} onStatut={setStatut} />
+            <Messages
+              boutiqueActive={boutiqueActive} userId={session.user.id} monNom={monNom} onStatut={setStatut}
+              credits={credits} historique={historique} boutiqueId={boutiqueActive?.id} boutique={boutique}
+              onImprimer={h => imprimerFacture(h, boutique)}
+              onNouvelleVente={() => { setOnglet("saisie"); setStatut("🛒 Enregistre la vente/crédit pour ce client."); }}
+              onDevis={(client, phone) => { setDocPrefill({ client, phone, type: "devis" }); setOnglet("documents"); }} />
           )
         )}
         {onglet === "caisse" && (
