@@ -28,6 +28,7 @@ import { bipVente, bipErreur } from "./feedback";
 import { ADMIN_EMAIL, DUREE_ESSAI_JOURS, ADMIN_WHATSAPP, PRIX_ABONNEMENT } from "./config";
 import { imprimerFacture, envoyerRecuWhatsApp } from "./receipt";
 import { lireOutbox, ajouterOutbox, retirerOutbox, tailleOutbox } from "./outbox";
+import { sauverCache, lireCache, ageCache } from "./cache";
 
 export default function App() {
   const [session, setSession] = useState(null);
@@ -227,6 +228,7 @@ export default function App() {
   useEffect(() => {
     if (!session) return;
     (async () => {
+     try {
       // 1. Réclamer les invitations en attente (lier mon compte par email)
       await supabase.from("membres").update({ user_id: session.user.id })
         .is("user_id", null).ilike("email", session.user.email);
@@ -249,6 +251,7 @@ export default function App() {
       const toutes = [...(possedees || []), ...membreBoutiques.filter(b => !(possedees || []).some(p => p.id === b.id))];
       setBoutiques(toutes);
       setBoutiqueActive(prev => prev || toutes[0] || null);
+      sauverCache(`meta_${session.user.id}`, { boutiques: toutes, membres: membres || [] });
 
       // Propriétaire = possède au moins une boutique → soumis à l'abonnement
       const proprio = (possedees || []).length > 0;
@@ -264,6 +267,16 @@ export default function App() {
         }
         setAbonnement(abo);
       }
+     } catch {
+      // Démarrage hors-ligne : on restaure les boutiques du dernier instantané
+      const c = lireCache(`meta_${session.user.id}`);
+      if (c?.boutiques?.length) {
+        setMesMembres(c.membres || []);
+        setBoutiques(c.boutiques);
+        setBoutiqueActive(prev => prev || c.boutiques[0] || null);
+        setEstProprio(c.boutiques.some(b => b.proprietaire_id === session.user.id));
+      }
+     }
     })();
   }, [session]);
 
@@ -283,34 +296,56 @@ export default function App() {
     const ids = vueGlobale ? boutiques.map(b => b.id) : (boutiqueActive ? [boutiqueActive.id] : []);
     if (ids.length === 0) { setProduits([]); setHistorique([]); setCredits([]); setKpi({ ca: 0, depenses: 0, benefice: 0, dettes: 0, margeTotal: 0 }); return; }
 
-    const [{ data: prods }, { data: histo }, { data: creds }, { data: transf }] = await Promise.all([
-      supabase.from("produits").select("*").in("boutique_id", ids).order("nom"),
-      supabase.from("historique").select("*").in("boutique_id", ids).order("created_at", { ascending: false }),
-      supabase.from("credits").select("*").in("boutique_id", ids),
-      supabase.from("transferts").select("*").eq("proprietaire_id", session.user.id).order("created_at", { ascending: false }),
-    ]);
+    const scope = vueGlobale ? `g_${session.user.id}` : `b_${boutiqueActive.id}`;
+    const calcKpi = (histo, creds) => {
+      let ca = 0, dep = 0, marge = 0, dettes = 0;
+      (histo || []).forEach(h => {
+        if (h.type === "vente") { ca += h.montant || 0; marge += h.benefice_etabli || 0; }
+        if (h.type === "retour") { ca -= h.montant || 0; marge += h.benefice_etabli || 0; }
+        if (h.type === "depense") dep += h.montant || 0;
+      });
+      (creds || []).forEach(c => dettes += c.reste_a_payer || 0);
+      return { ca, depenses: dep, benefice: marge - dep, dettes, margeTotal: marge };
+    };
 
-    setProduits(prods || []);
-    setHistorique(histo || []);
-    setCredits(creds || []);
-    setTransferts(transf || []);
+    try {
+      const [{ data: prods }, { data: histo }, { data: creds }, { data: transf }] = await Promise.all([
+        supabase.from("produits").select("*").in("boutique_id", ids).order("nom"),
+        supabase.from("historique").select("*").in("boutique_id", ids).order("created_at", { ascending: false }),
+        supabase.from("credits").select("*").in("boutique_id", ids),
+        supabase.from("transferts").select("*").eq("proprietaire_id", session.user.id).order("created_at", { ascending: false }),
+      ]);
 
-    // Fournisseurs (seulement en boutique unique, pour le réassort)
-    if (!vueGlobale && boutiqueActive) {
-      const { data: fourn } = await supabase.from("fournisseurs").select("*").eq("boutique_id", boutiqueActive.id).order("nom");
-      setFournisseurs(fourn || []);
-    } else {
-      setFournisseurs([]);
+      let fourn = [];
+      if (!vueGlobale && boutiqueActive) {
+        const r = await supabase.from("fournisseurs").select("*").eq("boutique_id", boutiqueActive.id).order("nom");
+        fourn = r.data || [];
+      }
+
+      setProduits(prods || []);
+      setHistorique(histo || []);
+      setCredits(creds || []);
+      setTransferts(transf || []);
+      setFournisseurs(fourn);
+      setKpi(calcKpi(histo, creds));
+
+      // Instantané pour consultation hors-ligne
+      sauverCache(scope, { produits: prods || [], historique: histo || [], credits: creds || [], transferts: transf || [], fournisseurs: fourn });
+    } catch {
+      // Hors-ligne (ou erreur réseau) : on affiche le dernier instantané connu
+      const c = lireCache(scope);
+      if (c) {
+        setProduits(c.produits || []);
+        setHistorique(c.historique || []);
+        setCredits(c.credits || []);
+        setTransferts(c.transferts || []);
+        setFournisseurs(c.fournisseurs || []);
+        setKpi(calcKpi(c.historique, c.credits));
+        setStatut(`📴 Hors-ligne — données ${ageCache(c._ts)}.`);
+      } else {
+        setStatut("📴 Hors-ligne — aucune donnée en cache pour cette boutique.");
+      }
     }
-
-    let ca = 0, dep = 0, marge = 0, dettes = 0;
-    (histo || []).forEach(h => {
-      if (h.type === "vente") { ca += h.montant || 0; marge += h.benefice_etabli || 0; }
-      if (h.type === "retour") { ca -= h.montant || 0; marge += h.benefice_etabli || 0; } // benefice_etabli déjà négatif
-      if (h.type === "depense") dep += h.montant || 0;
-    });
-    (creds || []).forEach(c => dettes += c.reste_a_payer || 0);
-    setKpi({ ca, depenses: dep, benefice: marge - dep, dettes, margeTotal: marge });
   }, [session, boutiqueActive, vueGlobale, boutiques]);
 
   useEffect(() => { chargerDonnees(); }, [chargerDonnees]);
