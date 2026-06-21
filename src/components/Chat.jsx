@@ -149,9 +149,10 @@ export default function Chat({ boutiqueActive, userId, monNom, onStatut }) {
                     <a href={m.media_url} target="_blank" rel="noopener" style={{ display: "none", color: C.blue, fontSize: 13 }}>📷 Ouvrir la photo</a>
                   </div>
                 ) : m.media_url && m.media_type === "audio" ? (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                    <audio controls preload="metadata" src={m.media_url} style={{ width: 210, height: 38 }} />
-                    <a href={m.media_url} target="_blank" rel="noopener" style={{ color: C.muted, fontSize: 10 }}>🎤 ouvrir la note vocale</a>
+                  <div>
+                    <audio controls preload="metadata" src={m.media_url} style={{ width: 210, height: 38, display: "block" }}
+                      onError={(e) => { e.currentTarget.style.display = "none"; const n = e.currentTarget.nextSibling; if (n) n.style.display = "inline"; }} />
+                    <a href={m.media_url} target="_blank" rel="noopener" style={{ display: "none", color: C.blue, fontSize: 13 }}>🎤 Ouvrir la note vocale</a>
                   </div>
                 ) : m.media_url ? (
                   <a href={m.media_url} target="_blank" rel="noopener" style={{ color: C.blue, fontSize: 13 }}>📎 Ouvrir le fichier</a>
