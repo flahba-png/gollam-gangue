@@ -3,43 +3,190 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Aide — Gollam Platform</title>
+<title>Formation — Gollam</title>
 <style>
-  body{font-family:-apple-system,'Segoe UI',Roboto,sans-serif;max-width:760px;margin:0 auto;padding:24px;color:#1a1a1a;line-height:1.6;background:#fff}
-  h1{font-size:24px} h2{font-size:16px;margin-top:24px;color:#0a8a5e}
-  .q{font-weight:bold;margin-top:16px} .a{color:#444;margin-top:4px} a{color:#0a8a5e}
-  .box{background:#f0fbf6;border:1px solid #1FD08A55;border-radius:8px;padding:14px;margin-top:20px}
+  :root{--v:#0a8a5e;--vl:#1FD08A}
+  *{box-sizing:border-box}
+  body{font-family:-apple-system,'Segoe UI',Roboto,sans-serif;max-width:820px;margin:0 auto;padding:20px;color:#1a1a1a;line-height:1.6;background:#fff}
+  h1{font-size:26px;margin-bottom:4px}
+  h2{font-size:19px;margin-top:34px;color:var(--v);border-bottom:2px solid var(--vl);padding-bottom:6px;scroll-margin-top:14px}
+  h3{font-size:15px;margin-top:20px;margin-bottom:4px}
+  p,li{color:#333} a{color:var(--v)}
+  .sub{color:#666;margin-top:0}
+  ol.steps{padding-left:20px} ol.steps li{margin:6px 0}
+  .toc{background:#f0fbf6;border:1px solid #1FD08A55;border-radius:10px;padding:14px 18px}
+  .toc a{display:inline-block;margin:3px 10px 3px 0;text-decoration:none;font-size:14px}
+  .tip{background:#fffbe6;border:1px solid #f0d000;border-radius:8px;padding:10px 14px;margin:12px 0;font-size:14px}
+  .warn{background:#fff0f0;border:1px solid #e0a0a0;border-radius:8px;padding:10px 14px;margin:12px 0;font-size:14px}
+  .box{background:#f0fbf6;border:1px solid #1FD08A55;border-radius:10px;padding:16px;margin-top:24px}
+  table{width:100%;border-collapse:collapse;margin:10px 0;font-size:14px}
+  th,td{border:1px solid #e2e2e2;padding:8px;text-align:left;vertical-align:top}
+  th{background:#f5f5f5}
+  code{background:#f2f2f2;padding:1px 5px;border-radius:4px;font-size:13px}
+  .role{display:inline-block;font-size:11px;font-weight:bold;border-radius:10px;padding:1px 8px;margin-left:6px}
+  .patron{background:#0a8a5e22;color:#0a8a5e} .vendeur{background:#3a6ea522;color:#3a6ea5}
 </style>
 </head>
 <body>
-  <h1>❓ Aide & Questions fréquentes</h1>
-  <p style="color:#666">Gollam Platform — Guide d'utilisation</p>
+  <h1>🎓 Formation Gollam</h1>
+  <p class="sub">Guide complet pour bien démarrer et tout maîtriser — pour le patron comme pour le vendeur.</p>
 
-  <h2>🛒 Ventes & caisse</h2>
-  <div class="q">Comment enregistrer une vente ?</div>
-  <div class="a">Onglet <b>Saisie</b> → choisis « Vente » → ajoute tes produits au panier → choisis le mode de paiement → « Enregistrer ». Un reçu est prêt à imprimer ou envoyer.</div>
-  <div class="q">Comment faire une vente à crédit ?</div>
-  <div class="a">Dans Saisie, choisis « Crédit », ajoute les articles, renseigne le client, son téléphone et l'avance versée. Le reste est suivi dans l'onglet Crédits.</div>
-  <div class="q">Comment clôturer ma caisse ?</div>
-  <div class="a">Onglet <b>Caisse</b> → saisis ton fond de caisse et le montant compté → l'app calcule l'écart automatiquement.</div>
+  <div class="toc">
+    <b>Sommaire</b><br>
+    <a href="#demarrage">1. Démarrage rapide</a>
+    <a href="#roles">2. Patron / Gérant / Vendeur</a>
+    <a href="#stock">3. Stock & catalogue</a>
+    <a href="#vente">4. Ventes & paiements</a>
+    <a href="#credit">5. Crédits & relances</a>
+    <a href="#clients">6. Clients & suivi</a>
+    <a href="#documents">7. Devis & factures</a>
+    <a href="#caisse">8. Clôture de caisse</a>
+    <a href="#transferts">9. Transferts & entrepôts</a>
+    <a href="#equipe">10. Équipe & permissions</a>
+    <a href="#stats">11. Statistiques & compta</a>
+    <a href="#fidelite">12. Fidélité</a>
+    <a href="#camera">13. Surveillance caméra</a>
+    <a href="#reglages">14. Réglages</a>
+    <a href="#horsligne">15. Hors-ligne & sauvegarde</a>
+    <a href="#faq">16. FAQ</a>
+  </div>
 
-  <h2>📦 Stock</h2>
-  <div class="q">Comment ajouter un produit ?</div>
-  <div class="a">Saisie → « Stock » → choisis « Nouveau produit », mets le nom, prix d'achat, prix de vente, quantité et fournisseur.</div>
-  <div class="q">Comment transférer du stock entre boutiques ?</div>
-  <div class="a">Onglet <b>Stock</b> → bouton « Transférer », ou onglet <b>Transferts</b>. La boutique qui reçoit doit valider à la réception.</div>
+  <h2 id="demarrage">1. Démarrage rapide (5 minutes)</h2>
+  <p>À la première connexion, suis ces 3 étapes pour être opérationnel :</p>
+  <ol class="steps">
+    <li><b>Crée ton compte</b> : choisis « 🏪 Propriétaire », donne le nom de ta boutique et ta ville.</li>
+    <li><b>Mets tes produits</b> : onglet <b>Stock</b>. Pour quelques articles, ajoute-les un par un. Pour beaucoup (50, 500, 2000…), utilise <b>« 📥 Importer depuis Excel / CSV »</b> et le modèle fourni.</li>
+    <li><b>Enregistre ta première vente</b> : onglet <b>Saisie</b> → ajoute au panier → choisis le paiement → Enregistrer.</li>
+  </ol>
+  <div class="tip">💡 Installe l'app sur ton téléphone : ouvre le site dans le navigateur → menu → « Ajouter à l'écran d'accueil ». Elle s'ouvre alors comme une vraie application, même sans connexion.</div>
 
-  <h2>🧾 Documents</h2>
-  <div class="a">Onglet <b>Documents</b> : crée des devis, factures et bons de livraison. Tu peux les envoyer par WhatsApp ou SMS, et transformer un devis en facture.</div>
+  <h2 id="roles">2. Les trois rôles</h2>
+  <table>
+    <tr><th>Rôle</th><th>Ce qu'il peut faire</th></tr>
+    <tr><td><b>Patron</b> (propriétaire)</td><td>Tout : voir les bénéfices, le stock, les prix d'achat, gérer l'équipe, les réglages, le journal des actions, l'abonnement.</td></tr>
+    <tr><td><b>Gérant</b></td><td>Comme un vendeur, mais avec plus de droits si le patron les active (modifier/supprimer des ventes, voir les bénéfices…).</td></tr>
+    <tr><td><b>Vendeur</b></td><td>Vendre, encaisser, gérer les crédits. Ne voit <b>pas</b> les bénéfices ni les prix d'achat (sauf autorisation du patron).</td></tr>
+  </table>
+  <p>Le patron règle finement chaque droit dans <b>Équipe</b> (voir section 10).</p>
 
-  <h2>🧑‍🤝‍🧑 Équipe</h2>
-  <div class="a">Onglet <b>Équipe</b> : ajoute tes employés par email. Ils créent un compte « Employé » avec ce même email pour accéder. Un vendeur ne voit pas tes bénéfices.</div>
+  <h2 id="stock">3. Stock & catalogue</h2>
+  <h3>Ajouter un produit</h3>
+  <ol class="steps">
+    <li>Onglet <b>Saisie</b> → « 🟢 Stock » → tape le nom (ou « Nouveau produit »).</li>
+    <li>Renseigne <b>prix d'achat</b>, <b>prix de vente</b>, <b>quantité</b>, et si possible le fournisseur.</li>
+  </ol>
+  <h3>Importer en masse (Excel/CSV)</h3>
+  <ol class="steps">
+    <li>Onglet <b>Stock</b> → « 📥 Importer depuis Excel / CSV ».</li>
+    <li>Pas de fichier ? Clique « Télécharge le modèle » et remplis-le.</li>
+    <li>Associe les colonnes (Nom, Prix achat, Prix vente, Quantité, Catégorie…), vérifie l'aperçu, puis importe.</li>
+  </ol>
+  <h3>Trier & filtrer</h3>
+  <p>Dans le catalogue : barre de tri (A→Z, stock, prix) et filtre par <b>catégorie</b>. La catégorie se crée toute seule dès que tu en saisis une dans une fiche.</p>
+  <div class="tip">💡 Une pastille rouge sur le stock = il faut réapprovisionner. L'onglet <b>Réassort</b> te le rappelle et prépare la commande fournisseur par WhatsApp.</div>
 
-  <h2>💳 Abonnement</h2>
-  <div class="a">14 jours d'essai gratuit, puis 18 000 F/mois. Paiement par Wave ou Orange Money, activation rapide après réception.</div>
+  <h2 id="vente">4. Ventes & paiements</h2>
+  <ol class="steps">
+    <li>Onglet <b>Saisie</b> → « 🔴 Vente ».</li>
+    <li>Cherche un produit (tape les premières lettres), choisis-le, ajuste la quantité, « + Ajouter » au panier.</li>
+    <li>Ajoute autant d'articles que tu veux. Tu peux mettre une remise.</li>
+    <li>Choisis le <b>mode de paiement</b> : Espèces, Wave, Orange, MTN, Moov.</li>
+    <li>« Enregistrer la vente ». Un <b>reçu</b> est prêt : 🖨️ imprimer (ticket 58 mm) ou 💬 envoyer par WhatsApp.</li>
+  </ol>
+  <div class="tip">💡 Tu peux scanner le code-barres d'un produit avec 📷 pour l'ajouter instantanément.</div>
+  <h3>Retour / avoir</h3>
+  <p>Onglet <b>Historique</b> → sur une vente → bouton ↩️ : choisis les quantités à rendre. Le stock est réintégré et le montant remboursé est suivi.</p>
+
+  <h2 id="credit">5. Crédits & relances</h2>
+  <h3>Vendre à crédit</h3>
+  <p>Saisie → « 📒 Crédit » → ajoute les articles → renseigne le <b>client</b>, son <b>téléphone</b> et l'<b>avance versée</b>. Le reste dû est suivi automatiquement.</p>
+  <h3>Encaisser un remboursement</h3>
+  <p>Onglet <b>Crédits</b> → sur la fiche du client → saisis la somme reçue → « Encaisser ». Quand tout est payé, le crédit se solde.</p>
+  <h3>Relancer</h3>
+  <p>L'app détecte les <b>retards de +30 jours</b> : un encart rouge liste les clients concernés avec un bouton <b>« Relancer tous par WhatsApp »</b>. Tu peux aussi relancer un client précis (💬 / 📩).</p>
+  <div class="tip">💡 Définis un <b>plafond de crédit</b> par client (dans son fil de suivi) : l'app bloquera une vente à crédit qui dépasserait ce plafond.</div>
+
+  <h2 id="clients">6. Clients & suivi <span class="role patron">Patron/Gérant</span></h2>
+  <p>Onglet <b>Messages</b> → bascule <b>« 📇 Clients »</b>. C'est un suivi façon messagerie :</p>
+  <ul>
+    <li><b>Liste</b> : tous tes clients, avec leur dette éventuelle et leur dernière activité.</li>
+    <li><b>Fil d'un client</b> : ses achats (avec reçu), ses versements, une alerte « RESTE À PAYER », et tes <b>notes</b> internes.</li>
+    <li><b>Raccourcis</b> en bas : 🛒 Vente, 📝 Devis, 📄 État de compte (PDF).</li>
+  </ul>
+
+  <h2 id="documents">7. Devis & factures</h2>
+  <p>Onglet <b>Documents</b> : crée des <b>devis</b>, <b>factures</b> et <b>bons de livraison</b> numérotés. Tu peux les imprimer, les envoyer par WhatsApp/SMS, et transformer un devis en facture en un clic.</p>
+  <div class="tip">💡 Chaque boutique peut mettre <b>son propre logo</b> sur ses reçus et factures (Mon compte → Logo de la boutique).</div>
+
+  <h2 id="caisse">8. Clôture de caisse (rapport Z)</h2>
+  <ol class="steps">
+    <li>Onglet <b>Caisse</b> → choisis la date (et le vendeur si patron).</li>
+    <li>L'app détaille : <b>Ventes du jour</b> vs <b>Règlements de créances</b>, par mode de paiement.</li>
+    <li>Saisis ton <b>fond de caisse</b> et le <b>montant compté</b> → l'écart est calculé.</li>
+  </ol>
+  <p><b>Clôture « aveugle » pour le vendeur</b> : il compte la caisse sans voir le montant attendu ; seul le patron voit l'écart dans l'historique des clôtures.</p>
+
+  <h2 id="transferts">9. Transferts & entrepôts</h2>
+  <p>Si tu as plusieurs boutiques ou un entrepôt : onglet <b>Transferts</b> → envoie du stock d'un lieu à un autre. Le stock sort tout de suite de la source ; le lieu qui reçoit <b>valide la réception</b> (ou refuse → le stock revient).</p>
+
+  <h2 id="equipe">10. Équipe & permissions <span class="role patron">Patron</span></h2>
+  <ol class="steps">
+    <li>Onglet <b>Équipe</b> → ajoute un employé par <b>email</b>.</li>
+    <li>L'employé crée un compte « 👤 Employé » avec <b>ce même email</b>, puis se connecte.</li>
+    <li>Choisis un rôle rapide (Vendeur / Gérant), puis affine via <b>« Personnaliser les accès »</b> : stock, prix d'achat, crédits, modification de ventes, bénéfices, caisse.</li>
+  </ol>
+  <div class="warn">🔒 Les actions sensibles (suppression/modification de mouvements) sont tracées dans le <b>Journal</b> (onglet 🕵️, patron uniquement) : qui, quoi, quand.</div>
+
+  <h2 id="stats">11. Statistiques & comptabilité <span class="role patron">Patron</span></h2>
+  <p>Onglet <b>Stats</b> : chiffre d'affaires, bénéfice, taux de marge, palmarès des produits, stocks dormants (capital bloqué), TVA. Exports :</p>
+  <ul>
+    <li><b>📄 PDF</b> et <b>📊 Excel</b> : rapport d'analyse.</li>
+    <li><b>🧮 Export comptable</b> : journal détaillé de tous les mouvements (recettes, dépenses, résultat) pour ton comptable.</li>
+  </ul>
+
+  <h2 id="fidelite">12. Programme de fidélité <span class="role patron">Patron</span></h2>
+  <ol class="steps">
+    <li>Messages → 📇 Clients → « 🎁 Programme de fidélité » → active-le et règle : 1 point tous les X francs, récompense dès Y points, valeur de la récompense.</li>
+    <li>Chaque client cumule des points selon ses achats.</li>
+    <li>Quand il a assez de points, ouvre son fil → bouton <b>« Utiliser »</b> → la récompense est appliquée et les points consommés (tracé dans le fil).</li>
+  </ol>
+
+  <h2 id="camera">13. Surveillance caméra <span class="role patron">Patron/Gérant</span></h2>
+  <p>Sur l'<b>Accueil</b>, bouton « 👁️ Voir le direct boutique ». Ajoute tes caméras (nom + URL du flux <b>HLS/M3U8</b>) puis visionne en direct, en basculant d'une caméra à l'autre.</p>
+  <div class="warn">⚠️ Les navigateurs ne lisent pas le <b>RTSP</b> directement. Utilise l'URL HLS/M3U8 fournie par l'app de ta caméra ou un convertisseur.</div>
+
+  <h2 id="reglages">14. Réglages (Mon compte)</h2>
+  <p>Bouton ⚙️ en haut à droite :</p>
+  <ul>
+    <li><b>Boutique active</b> & changement de boutique / vue globale.</li>
+    <li><b>Logo</b> de la boutique (sur les reçus).</li>
+    <li><b>Thème</b> clair/sombre, <b>langue</b> (FR/EN), <b>devise</b> (FCFA et autres devises africaines).</li>
+    <li><b>Sauvegarder</b> / <b>Restaurer</b> tes données.</li>
+    <li>Mot de passe, déconnexion, suppression de compte.</li>
+  </ul>
+
+  <h2 id="horsligne">15. Hors-ligne & sauvegarde</h2>
+  <h3>Sans connexion</h3>
+  <ul>
+    <li>L'app <b>s'ouvre</b> même sans réseau.</li>
+    <li>Tu <b>consultes</b> ton stock, ton historique et tes crédits (dernières données connues — un bandeau « 📴 Hors-ligne » l'indique).</li>
+    <li>Tu peux <b>encaisser une vente</b> : elle est mise en file (⏳) et se <b>synchronise toute seule</b> au retour du réseau.</li>
+  </ul>
+  <h3>Sauvegarde</h3>
+  <p>Mon compte → <b>💾 Sauvegarder</b> télécharge un fichier de toutes tes données. <b>♻️ Restaurer</b> les réimporte sans créer de doublons (utile en cas d'erreur ou de changement de téléphone). Fais-le régulièrement.</p>
+
+  <h2 id="faq">16. Questions fréquentes</h2>
+  <h3>Mon écran est blanc après une mise à jour</h3>
+  <p>Ferme et rouvre l'app. Si besoin, Mon compte → vide le cache (ou réinstalle la PWA).</p>
+  <h3>Un vendeur voit-il mes bénéfices ?</h3>
+  <p>Non, sauf si tu l'autorises explicitement dans Équipe → Personnaliser les accès.</p>
+  <h3>Mes clients voient-ils mes données ?</h3>
+  <p>Jamais. Chaque compte est totalement isolé : un autre commerçant ne voit que ses propres boutiques.</p>
+  <h3>Combien coûte l'app ?</h3>
+  <p>14 jours d'essai gratuit, puis <b>18 000 F/mois</b>. Paiement Wave ou Orange Money, activation rapide après réception.</p>
 
   <div class="box">
-    <b>Besoin d'aide ?</b><br>
+    <b>Besoin d'aide ou d'une démo ?</b><br>
     WhatsApp : <b>07 69 69 14 15</b><br>
     Email : <a href="mailto:flahba@icloud.com">flahba@icloud.com</a>
   </div>
