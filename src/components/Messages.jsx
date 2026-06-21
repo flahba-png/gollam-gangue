@@ -8,7 +8,7 @@ export default function Messages({
   // Chat (équipe)
   boutiqueActive, userId, monNom, onStatut,
   // Suivi client
-  credits, historique, boutiqueId, boutique, onImprimer, onNouvelleVente, onDevis,
+  credits, historique, boutiqueId, boutique, estPatron, onImprimer, onNouvelleVente, onDevis, onRefresh,
 }) {
   const [vue, setVue] = useState("equipe"); // equipe | clients
 
@@ -28,7 +28,8 @@ export default function Messages({
         <Chat boutiqueActive={boutiqueActive} userId={userId} monNom={monNom} onStatut={onStatut} />
       ) : (
         <SuiviClient credits={credits} historique={historique} boutiqueId={boutiqueId} boutique={boutique}
-          monNom={monNom} onImprimer={onImprimer} onNouvelleVente={onNouvelleVente} onDevis={onDevis} onStatut={onStatut} />
+          boutiqueActive={boutiqueActive} estPatron={estPatron} monNom={monNom}
+          onImprimer={onImprimer} onNouvelleVente={onNouvelleVente} onDevis={onDevis} onStatut={onStatut} onRefresh={onRefresh} />
       )}
     </div>
   );

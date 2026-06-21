@@ -10,7 +10,6 @@ import Credits from "./components/Credits";
 import Historique from "./components/Historique";
 import Stats from "./components/Stats";
 import SaisieForm from "./components/SaisieForm";
-import Clients from "./components/Clients";
 import Transferts from "./components/Transferts";
 import Equipe from "./components/Equipe";
 import Fournisseurs from "./components/Fournisseurs";
@@ -22,6 +21,7 @@ import Compte from "./components/Compte";
 import RechercheGlobale from "./components/RechercheGlobale";
 import Surveillance from "./components/Surveillance";
 import Messages from "./components/Messages";
+import Journal from "./components/Journal";
 import Onboarding, { onboardingVu } from "./components/Onboarding";
 import Documents from "./components/Documents";
 import { bipVente, bipErreur } from "./feedback";
@@ -658,13 +658,13 @@ export default function App() {
     { id: "stock", label: "📦", title: t("stock") },
     { id: "fournisseurs", label: "🚚", title: t("reassort"), badge: produits.filter(p => (p.stock || 0) <= (p.seuil_alerte ?? 2)).length },
     { id: "credits", label: "📒", title: t("credits"), badge: credits.length },
-    { id: "clients", label: "👥", title: t("clients") },
     { id: "documents", label: "🧾", title: t("documents") },
-    { id: "chat", label: "💬", title: "Messages", badge: credits.length },
+    { id: "chat", label: "💬", title: "Messages & Clients", badge: credits.length },
     { id: "equipe", label: "🧑‍🤝‍🧑", title: t("equipe") },
     { id: "caisse", label: "🔒", title: t("caisse") },
     { id: "inventaire", label: "📋", title: t("inventaire") },
     { id: "stats", label: "📈", title: t("stats") },
+    { id: "journal", label: "🕵️", title: "Journal" },
     ...(estAdmin ? [{ id: "admin", label: "👑", title: t("admin") }] : []),
   ];
   // Onglets du vendeur filtrés selon ses permissions
@@ -676,7 +676,6 @@ export default function App() {
     { id: "documents", label: "🧾", title: t("documents") },
     { id: "chat", label: "💬", title: t("chat") },
     perms.caisse_voir && { id: "caisse", label: "🔒", title: t("caisse") },
-    { id: "clients", label: "👥", title: t("clients") },
   ].filter(Boolean);
   const tabs = estPatron ? tabsPatron : tabsVendeur;
 
@@ -831,7 +830,6 @@ export default function App() {
           )
         )}
         {onglet === "credits" && <Credits credits={credits} kpi={kpi} boutiqueId={boutiqueActive?.id} onRefresh={chargerDonnees} onStatut={setStatut} boutique={boutique} />}
-        {onglet === "clients" && <Clients credits={credits} historique={historique} boutique={boutique} boutiqueId={vueGlobale ? null : boutiqueActive?.id} boutiqueActive={boutiqueActive} estPatron={estPatron} onRefresh={chargerDonnees} />}
         {onglet === "documents" && (
           vueGlobale ? (
             <div style={{ padding: "0 12px" }}>
@@ -854,6 +852,7 @@ export default function App() {
             <Messages
               boutiqueActive={boutiqueActive} userId={session.user.id} monNom={monNom} onStatut={setStatut}
               credits={credits} historique={historique} boutiqueId={boutiqueActive?.id} boutique={boutique}
+              estPatron={estPatron} onRefresh={chargerDonnees}
               onImprimer={h => imprimerFacture(h, boutique)}
               onNouvelleVente={() => { setOnglet("saisie"); setStatut("🛒 Enregistre la vente/crédit pour ce client."); }}
               onDevis={(client, phone) => { setDocPrefill({ client, phone, type: "devis" }); setOnglet("documents"); }} />
@@ -893,6 +892,7 @@ export default function App() {
           )
         )}
         {onglet === "stats" && estPatron && <Stats kpi={kpi} historique={historique} produits={produits} boutique={boutique} boutiqueActive={boutiqueActive} vueGlobale={vueGlobale} onRefresh={chargerDonnees} />}
+        {onglet === "journal" && estPatron && <Journal boutiqueId={vueGlobale ? null : boutiqueActive?.id} />}
         {onglet === "admin" && estAdmin && <Admin onStatut={setStatut} />}
       </div>
 

@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from "react";
-import { C, fmt } from "../theme";
+import { C, fmt, appeler } from "../theme";
 import { supabase } from "../supabase";
+import { relancerWhatsApp } from "../relance";
 
 // Suivi Client : ergonomie type messagerie (liste de discussions + fil par client).
 // Le fil mélange : transactions/reçus (historique), alerte "reste à payer" (crédits)
@@ -21,12 +22,51 @@ const jourLabel = (iso) => {
 };
 const heureDe = (iso) => { try { return new Date(iso).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }); } catch { return ""; } };
 
-export default function SuiviClient({ credits, historique, boutiqueId, boutique, monNom, onImprimer, onNouvelleVente, onDevis, onStatut }) {
+export default function SuiviClient({ credits, historique, boutiqueId, boutique, boutiqueActive, estPatron = false, monNom, onImprimer, onNouvelleVente, onDevis, onStatut, onRefresh }) {
   const [recherche, setRecherche] = useState("");
   const [clientSel, setClientSel] = useState(null);
   const [notes, setNotes] = useState([]);
   const [texte, setTexte] = useState("");
+  const [plafonds, setPlafonds] = useState({}); // client(lower) -> plafond
+  const [editPlaf, setEditPlaf] = useState("");
   const finRef = useRef(null);
+
+  // Config fidélité (portée par la boutique). Le patron l'active/règle.
+  const fid = {
+    active: !!boutiqueActive?.fidelite_active,
+    seuil: parseInt(boutiqueActive?.fidelite_seuil) || 1000,
+    palier: parseInt(boutiqueActive?.fidelite_palier) || 10,
+    valeur: parseInt(boutiqueActive?.fidelite_valeur) || 1000,
+  };
+  const [cfgFid, setCfgFid] = useState(fid);
+  const [cfgOuvert, setCfgOuvert] = useState(false);
+  const pointsDe = (totalAchats) => fid.seuil > 0 ? Math.floor((totalAchats || 0) / fid.seuil) : 0;
+
+  const enregistrerFidelite = async () => {
+    if (!boutiqueId) return;
+    await supabase.from("boutiques").update({
+      fidelite_active: cfgFid.active, fidelite_seuil: parseInt(cfgFid.seuil) || 1000,
+      fidelite_palier: parseInt(cfgFid.palier) || 10, fidelite_valeur: parseInt(cfgFid.valeur) || 1000,
+    }).eq("id", boutiqueId);
+    setCfgOuvert(false);
+    onRefresh && onRefresh();
+  };
+
+  // Plafonds de crédit
+  const chargerPlafonds = useCallback(async () => {
+    if (!boutiqueId) { setPlafonds({}); return; }
+    const { data } = await supabase.from("plafonds").select("*").eq("boutique_id", boutiqueId);
+    const map = {}; (data || []).forEach(p => { map[p.client.toLowerCase()] = p.plafond; });
+    setPlafonds(map);
+  }, [boutiqueId]);
+  useEffect(() => { chargerPlafonds(); }, [chargerPlafonds]);
+
+  const definirPlafond = async (nomClient) => {
+    if (!boutiqueId) return;
+    await supabase.from("plafonds").upsert({ boutique_id: boutiqueId, client: nomClient, plafond: parseInt(editPlaf) || 0 }, { onConflict: "boutique_id,client" });
+    setEditPlaf("");
+    chargerPlafonds();
+  };
 
   // Agrège les clients depuis crédits + historique (ventes nominatives)
   const clients = useMemo(() => {
@@ -122,6 +162,26 @@ export default function SuiviClient({ credits, historique, boutiqueId, boutique,
   if (!clientSel) {
     return (
       <div style={{ padding: "0 12px 12px" }}>
+        {/* CONFIG FIDÉLITÉ (patron) */}
+        {estPatron && boutiqueId && (
+          <div style={{ background: C.surface, borderRadius: 8, border: `1px solid ${fid.active ? C.green + "55" : C.border}`, padding: 12, marginBottom: 10 }}>
+            <div onClick={() => setCfgOuvert(o => !o)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}>
+              <span style={{ color: C.text, fontSize: 13, fontWeight: "bold" }}>🎁 Programme de fidélité</span>
+              <span style={{ fontSize: 11, fontWeight: "bold", color: fid.active ? C.green : C.muted }}>{fid.active ? `Actif · 1 pt / ${fmt(fid.seuil)}` : "Désactivé"} {cfgOuvert ? "▲" : "▼"}</span>
+            </div>
+            {cfgOuvert && (
+              <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
+                <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: C.text }}>
+                  <input type="checkbox" checked={cfgFid.active} onChange={e => setCfgFid(c => ({ ...c, active: e.target.checked }))} /> Activer la fidélité
+                </label>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 12, color: C.muted }}><span>1 point tous les</span><input type="number" value={cfgFid.seuil} onChange={e => setCfgFid(c => ({ ...c, seuil: e.target.value }))} style={miniInp} /><span>F</span></div>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 12, color: C.muted }}><span>Récompense dès</span><input type="number" value={cfgFid.palier} onChange={e => setCfgFid(c => ({ ...c, palier: e.target.value }))} style={miniInp} /><span>pts</span></div>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 12, color: C.muted }}><span>Valeur récompense</span><input type="number" value={cfgFid.valeur} onChange={e => setCfgFid(c => ({ ...c, valeur: e.target.value }))} style={miniInp} /><span>F</span></div>
+                <button onClick={enregistrerFidelite} style={{ padding: 9, background: C.green, color: C.bg, border: "none", borderRadius: 8, fontWeight: "bold", fontSize: 13, cursor: "pointer" }}>Enregistrer</button>
+              </div>
+            )}
+          </div>
+        )}
         <div style={{ marginBottom: 12 }}>
           <input type="text" placeholder="🔍 Rechercher un client..." value={recherche} onChange={e => setRecherche(e.target.value)}
             style={{ width: "100%", padding: "11px 14px", background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, color: C.text, fontSize: 13, boxSizing: "border-box" }} />
@@ -143,6 +203,11 @@ export default function SuiviClient({ credits, historique, boutiqueId, boutique,
                 {c.dette > 0 && (
                   <div style={{ marginTop: 4, background: C.red, color: "#fff", borderRadius: 12, padding: "1px 8px", fontSize: 10, fontWeight: "bold", display: "inline-block" }}>
                     {fmt(c.dette)}
+                  </div>
+                )}
+                {fid.active && pointsDe(c.totalAchats) > 0 && (
+                  <div style={{ marginTop: 3, fontSize: 9, fontWeight: "bold", color: pointsDe(c.totalAchats) >= fid.palier ? C.green : C.yellow }}>
+                    {pointsDe(c.totalAchats) >= fid.palier ? "🎁 récompense" : `⭐ ${pointsDe(c.totalAchats)} pt`}
                   </div>
                 )}
               </div>
@@ -167,6 +232,14 @@ export default function SuiviClient({ credits, historique, boutiqueId, boutique,
           <div style={{ color: C.text, fontSize: 14, fontWeight: "bold" }}>{clientSel.nom}</div>
           <div style={{ color: C.muted, fontSize: 11 }}>{clientSel.phone || "Pas de numéro"}</div>
         </div>
+        {clientSel.phone && (
+          <div style={{ display: "flex", gap: 6 }}>
+            <button onClick={() => appeler(clientSel.phone)} title="Appeler" style={{ background: C.green + "22", color: C.green, border: `1px solid ${C.green}44`, borderRadius: 8, padding: "6px 9px", fontSize: 14, cursor: "pointer" }}>📞</button>
+            {clientSel.dette > 0 && (
+              <button onClick={() => relancerWhatsApp({ nom: clientSel.nom, phone: clientSel.phone, reste: clientSel.dette }, boutique)} title="Relancer (WhatsApp)" style={{ background: "#25D36622", color: "#25D366", border: "1px solid #25D36644", borderRadius: 8, padding: "6px 9px", fontSize: 14, cursor: "pointer" }}>💬</button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Alerte financière épinglée */}
@@ -174,6 +247,28 @@ export default function SuiviClient({ credits, historique, boutiqueId, boutique,
         <div style={{ background: C.red + "18", borderBottom: `1px solid ${C.red}44`, padding: "8px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <span style={{ color: C.red, fontSize: 11, fontWeight: "bold", letterSpacing: 0.5 }}>⚠️ RESTE À PAYER</span>
           <span style={{ color: C.red, fontSize: 16, fontWeight: "bold" }}>{fmt(clientSel.dette)}</span>
+        </div>
+      )}
+
+      {/* Infos client : fidélité + plafond */}
+      {(fid.active || estPatron) && (
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", padding: "8px 12px", borderBottom: `1px solid ${C.border}`, background: C.surface, fontSize: 11 }}>
+          {fid.active && (() => {
+            const pts = pointsDe(clientSel.totalAchats);
+            const reco = fid.palier > 0 && pts >= fid.palier;
+            return <span style={{ color: reco ? C.green : C.yellow, fontWeight: "bold" }}>🎁 {pts} pt{reco ? ` · récompense ${fmt(fid.valeur)} dispo` : ` (récompense à ${fid.palier})`}</span>;
+          })()}
+          {estPatron && (() => {
+            const plaf = plafonds[clientSel.nom.toLowerCase()] || 0;
+            const depasse = plaf > 0 && clientSel.dette > plaf;
+            return (
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 6, marginLeft: "auto" }}>
+                <span style={{ color: plaf > 0 ? (depasse ? C.red : C.muted) : C.muted }}>Plafond : {plaf > 0 ? fmt(plaf) : "—"}</span>
+                <input type="number" placeholder="définir" value={editPlaf} onChange={e => setEditPlaf(e.target.value)} style={{ width: 70, padding: "3px 6px", background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 6, color: C.text, fontSize: 11 }} />
+                <button onClick={() => definirPlafond(clientSel.nom)} style={{ background: C.green + "22", color: C.green, border: `1px solid ${C.green}44`, borderRadius: 6, padding: "3px 8px", fontSize: 11, fontWeight: "bold", cursor: "pointer" }}>OK</button>
+              </span>
+            );
+          })()}
         </div>
       )}
 
@@ -247,3 +342,5 @@ export default function SuiviClient({ credits, historique, boutiqueId, boutique,
     </div>
   );
 }
+
+const miniInp = { width: 80, padding: "6px 8px", background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 6, color: "var(--text)", fontSize: 12, textAlign: "right" };

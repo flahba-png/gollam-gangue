@@ -1,20 +1,13 @@
 import React, { useState, useMemo } from "react";
-import { C, fmt, heure, todayISO, envoyerWhatsApp, envoyerSMS, ageEnJours, SEUIL_RETARD } from "../theme";
+import { C, fmt, heure, todayISO, envoyerWhatsApp, ageEnJours, SEUIL_RETARD } from "../theme";
 import { t } from "../i18n";
 import { supabase } from "../supabase";
+import { messageRelance as buildRelance, relancerWhatsApp, relancerSMS as relanceSMS } from "../relance";
 
 export default function Credits({ credits, kpi, boutiqueId, onRefresh, onStatut, boutique }) {
-  const messageRelance = (c) =>
-    `Bonjour ${c.client} 👋\n\n` +
-    `Rappel de *${boutique?.nom || "notre boutique"}*.\n` +
-    `Article : ${c.article}\n` +
-    `Montant total : ${fmt(c.total)}\n` +
-    `Déjà payé : ${fmt(c.avance)}\n` +
-    `Reste à payer : *${fmt(c.reste_a_payer)}*\n\n` +
-    `Merci de régulariser quand vous pouvez. 🙏`;
-
-  const relancer = (c) => envoyerWhatsApp(c.client_phone, messageRelance(c));
-  const relancerSMS = (c) => envoyerSMS(c.client_phone, messageRelance(c));
+  const infosDe = (c) => ({ nom: c.client, phone: c.client_phone, article: c.article, total: c.total, avance: c.avance, reste: c.reste_a_payer });
+  const relancer = (c) => relancerWhatsApp(infosDe(c), boutique);
+  const relancerSMS = (c) => relanceSMS(infosDe(c), boutique);
 
   const [montantsRembours, setMontantsRembours] = useState({});
 
@@ -31,7 +24,7 @@ export default function Credits({ credits, kpi, boutiqueId, onRefresh, onStatut,
   const relancerTous = () => {
     const avecTel = enRetard.filter(c => c.client_phone);
     if (avecTel.length === 0) { onStatut("⚠️ Aucun client en retard n'a de numéro enregistré."); return; }
-    avecTel.forEach((c, i) => setTimeout(() => envoyerWhatsApp(c.client_phone, messageRelance(c)), i * 600));
+    avecTel.forEach((c, i) => setTimeout(() => envoyerWhatsApp(c.client_phone, buildRelance(infosDe(c), boutique)), i * 600));
     onStatut(`💬 ${avecTel.length} relance(s) WhatsApp ouverte(s).`);
   };
 
