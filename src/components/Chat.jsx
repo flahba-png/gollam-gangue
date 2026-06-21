@@ -140,14 +140,23 @@ export default function Chat({ boutiqueActive, userId, monNom, onStatut }) {
             <div key={m.id} style={{ display: "flex", justifyContent: moi ? "flex-end" : "flex-start", marginBottom: 8 }}>
               <div style={{ maxWidth: "78%", background: moi ? C.green + "22" : C.surface2, border: `1px solid ${moi ? C.green + "44" : C.border}`, borderRadius: 12, padding: "7px 11px" }}>
                 {!moi && canal === "groupe" && <div style={{ color: C.blue, fontSize: 10, fontWeight: "bold", marginBottom: 2 }}>{m.expediteur_nom || "?"}</div>}
-                {m.media_type === "image" ? (
-                  <a href={m.media_url} target="_blank" rel="noopener">
-                    <img src={m.media_url} alt="photo" style={{ maxWidth: "100%", maxHeight: 220, borderRadius: 8, display: "block" }} />
-                  </a>
-                ) : m.media_type === "audio" ? (
-                  <audio controls src={m.media_url} style={{ maxWidth: 220, height: 36 }} />
+                {m.media_url && m.media_type === "image" ? (
+                  <div>
+                    <a href={m.media_url} target="_blank" rel="noopener">
+                      <img src={m.media_url} alt="photo" style={{ maxWidth: "100%", maxHeight: 220, borderRadius: 8, display: "block" }}
+                        onError={(e) => { e.currentTarget.style.display = "none"; const n = e.currentTarget.nextSibling; if (n) n.style.display = "inline"; }} />
+                    </a>
+                    <a href={m.media_url} target="_blank" rel="noopener" style={{ display: "none", color: C.blue, fontSize: 13 }}>📷 Ouvrir la photo</a>
+                  </div>
+                ) : m.media_url && m.media_type === "audio" ? (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                    <audio controls preload="metadata" src={m.media_url} style={{ width: 210, height: 38 }} />
+                    <a href={m.media_url} target="_blank" rel="noopener" style={{ color: C.muted, fontSize: 10 }}>🎤 ouvrir la note vocale</a>
+                  </div>
+                ) : m.media_url ? (
+                  <a href={m.media_url} target="_blank" rel="noopener" style={{ color: C.blue, fontSize: 13 }}>📎 Ouvrir le fichier</a>
                 ) : (
-                  <div style={{ color: C.text, fontSize: 13, wordBreak: "break-word" }}>{m.texte}</div>
+                  <div style={{ color: C.text, fontSize: 13, wordBreak: "break-word" }}>{m.texte || "—"}</div>
                 )}
                 <div style={{ color: C.muted, fontSize: 9, textAlign: "right", marginTop: 2 }}>{heureDe(m.created_at)}</div>
               </div>
