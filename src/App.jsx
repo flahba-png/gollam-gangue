@@ -60,6 +60,8 @@ export default function App() {
   const [rechercheOuverte, setRechercheOuverte] = useState(false);
   const [surveillanceOuverte, setSurveillanceOuverte] = useState(false);
   const [docPrefill, setDocPrefill] = useState(null);
+  const [dernierBackup, setDernierBackup] = useState(() => { try { return parseInt(localStorage.getItem("gollam_last_backup")) || 0; } catch { return 0; } });
+  const [rappelBackupMasque, setRappelBackupMasque] = useState(false);
   const [montrerOnboarding, setMontrerOnboarding] = useState(!onboardingVu());
   const [theme, setTheme] = useState(themeActuel());
   const [langue, setLangueState] = useState(langueActuelle());
@@ -86,8 +88,10 @@ export default function App() {
     const blob = new Blob([JSON.stringify(sauvegarde, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = url; a.download = `gangue_sauvegarde_${todayISO()}.json`; a.click();
+    a.href = url; a.download = `gollam_sauvegarde_${todayISO()}.json`; a.click();
     URL.revokeObjectURL(url);
+    try { localStorage.setItem("gollam_last_backup", String(Date.now())); } catch { /* ignore */ }
+    setDernierBackup(Date.now());
     setStatut("✅ Sauvegarde téléchargée.");
   };
 
@@ -829,6 +833,21 @@ export default function App() {
             <div style={{ background: C.surface, border: `1px solid ${couleur}66`, borderLeft: `4px solid ${couleur}`, borderRadius: 10, padding: "11px 14px", fontSize: 13, color: C.text, boxShadow: "0 8px 28px rgba(0,0,0,0.45)", display: "flex", alignItems: "center", gap: 8 }}>
               <span style={{ flex: 1 }}>{statut}</span>
             </div>
+          </div>
+        );
+      })()}
+
+      {estProprio && !rappelBackupMasque && enLigne && (() => {
+        const jours = dernierBackup ? Math.floor((Date.now() - dernierBackup) / 86400000) : 999;
+        if (jours < 7) return null;
+        return (
+          <div style={{ margin: "10px 12px 0", background: C.yellow + "18", border: `1px solid ${C.yellow}66`, borderRadius: 10, padding: "10px 12px", display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ fontSize: 18 }}>💾</span>
+            <div style={{ flex: 1, fontSize: 12, color: C.text }}>
+              {dernierBackup ? `Dernière sauvegarde il y a ${jours} jours.` : "Tu n'as pas encore sauvegardé tes données."} Pense à protéger ton business.
+            </div>
+            <button onClick={exporterDonnees} style={{ background: C.green, color: C.bg, border: "none", borderRadius: 8, padding: "7px 11px", fontSize: 12, fontWeight: "bold", cursor: "pointer", whiteSpace: "nowrap" }}>Sauvegarder</button>
+            <button onClick={() => setRappelBackupMasque(true)} title="Plus tard" style={{ background: "transparent", border: "none", color: C.muted, fontSize: 16, cursor: "pointer" }}>✕</button>
           </div>
         );
       })()}
