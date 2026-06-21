@@ -1,9 +1,9 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, lazy, Suspense } from "react";
 import { C, fmt } from "../theme";
 import { t } from "../i18n";
 import { supabase } from "../supabase";
 import Scanner from "./Scanner";
-import ImportStock from "./ImportStock";
+const ImportStock = lazy(() => import("./ImportStock"));
 
 const TRIS = [
   { id: "stock", label: "Stock ↑" },
@@ -96,8 +96,10 @@ export default function Stock({ produits, boutiqueId, onRefresh, fournisseurs = 
     <div style={{ padding: "0 12px 12px" }}>
       {scanOuvert && <Scanner onScan={(code) => { setScanOuvert(false); setEditData(d => ({ ...d, codeBarre: code })); }} onClose={() => setScanOuvert(false)} />}
       {importOuvert && (
-        <ImportStock produits={produits} boutiqueId={boutiqueId} onRefresh={onRefresh}
-          onStatut={onStatut || (() => {})} onClose={() => setImportOuvert(false)} />
+        <Suspense fallback={<div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff" }}>⏳ Chargement…</div>}>
+          <ImportStock produits={produits} boutiqueId={boutiqueId} onRefresh={onRefresh}
+            onStatut={onStatut || (() => {})} onClose={() => setImportOuvert(false)} />
+        </Suspense>
       )}
 
       {peutModifier && (

@@ -1,29 +1,31 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, lazy, Suspense } from "react";
 import { supabase } from "./supabase";
 import { C, fmt, today, todayISO, heure, envoyerWhatsApp, appliquerTheme, themeActuel, DEVISE, appliquerDevise } from "./theme";
 import { t, setLangue, langueActuelle } from "./i18n";
 import { permsDe } from "./permissions";
+// Eager : écrans du démarrage / fréquents
 import Auth from "./components/Auth";
 import Dashboard from "./components/Dashboard";
 import Stock from "./components/Stock";
 import Credits from "./components/Credits";
-import Historique from "./components/Historique";
-import Stats from "./components/Stats";
 import SaisieForm from "./components/SaisieForm";
-import Transferts from "./components/Transferts";
-import Equipe from "./components/Equipe";
-import Fournisseurs from "./components/Fournisseurs";
-import Cloture from "./components/Cloture";
-import Inventaire from "./components/Inventaire";
-import Paywall from "./components/Paywall";
-import Admin from "./components/Admin";
 import Compte from "./components/Compte";
-import RechercheGlobale from "./components/RechercheGlobale";
-import Surveillance from "./components/Surveillance";
-import Messages from "./components/Messages";
-import Journal from "./components/Journal";
+import Paywall from "./components/Paywall";
 import Onboarding, { onboardingVu } from "./components/Onboarding";
-import Documents from "./components/Documents";
+// Lazy : onglets secondaires (chargés à la demande → bundle initial plus léger)
+const Historique = lazy(() => import("./components/Historique"));
+const Stats = lazy(() => import("./components/Stats"));
+const Transferts = lazy(() => import("./components/Transferts"));
+const Equipe = lazy(() => import("./components/Equipe"));
+const Fournisseurs = lazy(() => import("./components/Fournisseurs"));
+const Cloture = lazy(() => import("./components/Cloture"));
+const Inventaire = lazy(() => import("./components/Inventaire"));
+const Admin = lazy(() => import("./components/Admin"));
+const RechercheGlobale = lazy(() => import("./components/RechercheGlobale"));
+const Surveillance = lazy(() => import("./components/Surveillance"));
+const Messages = lazy(() => import("./components/Messages"));
+const Journal = lazy(() => import("./components/Journal"));
+const Documents = lazy(() => import("./components/Documents"));
 import { bipVente, bipErreur } from "./feedback";
 import { ADMIN_EMAIL, DUREE_ESSAI_JOURS, ADMIN_WHATSAPP, PRIX_ABONNEMENT } from "./config";
 import { imprimerFacture, envoyerRecuWhatsApp } from "./receipt";
@@ -772,13 +774,17 @@ export default function App() {
       </div>
 
       {rechercheOuverte && (
-        <RechercheGlobale produits={produits} credits={credits} historique={historique}
-          onNaviguer={(o) => setOnglet(o)} onClose={() => setRechercheOuverte(false)} />
+        <Suspense fallback={null}>
+          <RechercheGlobale produits={produits} credits={credits} historique={historique}
+            onNaviguer={(o) => setOnglet(o)} onClose={() => setRechercheOuverte(false)} />
+        </Suspense>
       )}
 
       {surveillanceOuverte && !vueGlobale && boutiqueActive && (
-        <Surveillance boutiqueActive={boutiqueActive} estPatron={estPatron}
-          onRefresh={chargerDonnees} onClose={() => setSurveillanceOuverte(false)} />
+        <Suspense fallback={null}>
+          <Surveillance boutiqueActive={boutiqueActive} estPatron={estPatron}
+            onRefresh={chargerDonnees} onClose={() => setSurveillanceOuverte(false)} />
+        </Suspense>
       )}
 
       {compteOuvert && (
@@ -828,6 +834,7 @@ export default function App() {
       })()}
 
       <div key={onglet} className="tab-content" style={{ paddingTop: 12, paddingBottom: 70 }}>
+       <Suspense fallback={<div style={{ padding: 40, textAlign: "center", color: C.muted, fontSize: 13 }}>⏳ Chargement…</div>}>
         {onglet === "dashboard" && <Dashboard kpi={kpi} historique={historique} credits={credits} produits={produits} estPatron={peutVoirBenefice} onImprimer={h => imprimerFacture(h, boutique)} onWhatsApp={h => envoyerRecuWhatsApp(h, boutique)} onVoirCredits={() => setOnglet("credits")} cameras={(!vueGlobale && boutiqueActive?.cameras) || []} peutGererCameras={estPatron && !vueGlobale} onSurveillance={() => setSurveillanceOuverte(true)} />}
         {onglet === "saisie" && (
           <div style={{ padding: "0 12px 12px" }}>
@@ -929,6 +936,7 @@ export default function App() {
         {onglet === "stats" && estPatron && <Stats kpi={kpi} historique={historique} produits={produits} boutique={boutique} boutiqueActive={boutiqueActive} vueGlobale={vueGlobale} onRefresh={chargerDonnees} />}
         {onglet === "journal" && estPatron && <Journal boutiqueId={vueGlobale ? null : boutiqueActive?.id} />}
         {onglet === "admin" && estAdmin && <Admin onStatut={setStatut} />}
+       </Suspense>
       </div>
 
       {/* MENU "PLUS" (onglets secondaires) */}
