@@ -6,7 +6,7 @@ import { t } from "../i18n";
 
 const PREFIX = { devis: "DEV", facture: "FAC", bon_livraison: "BL" };
 
-export default function Documents({ produits, boutiqueActive, boutique, credits = [], historique = [], onStatut, prefill, onPrefillDone }) {
+export default function Documents({ produits, boutiqueActive, boutique, credits = [], historique = [], clientsExtra = [], onStatut, prefill, onPrefillDone }) {
   const TYPES = [
     { id: "devis", label: `📝 ${t("devis")}` },
     { id: "facture", label: `🧾 ${t("facture")}` },
@@ -43,8 +43,9 @@ export default function Documents({ produits, boutiqueActive, boutique, credits 
     credits.forEach(c => add(c.client, c.client_phone));
     historique.forEach(h => add(h.details_facture?.client, h.details_facture?.clientPhone));
     docs.forEach(d => add(d.client, d.client_phone));
+    clientsExtra.forEach(c => add(c.nom, c.phone));
     return [...map.values()].sort((a, b) => a.nom.localeCompare(b.nom));
-  }, [credits, historique, docs]);
+  }, [credits, historique, docs, clientsExtra]);
 
   const charger = useCallback(async () => {
     if (!boutiqueActive) return;

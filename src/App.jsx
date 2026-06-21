@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, lazy, Suspense } from "react";
+import React, { useState, useEffect, useCallback, useMemo, lazy, Suspense } from "react";
 import { supabase } from "./supabase";
 import { C, fmt, today, todayISO, heure, envoyerWhatsApp, appliquerTheme, themeActuel, DEVISE, appliquerDevise } from "./theme";
 import { t, setLangue, langueActuelle } from "./i18n";
@@ -60,6 +60,7 @@ export default function App() {
   const [rechercheOuverte, setRechercheOuverte] = useState(false);
   const [surveillanceOuverte, setSurveillanceOuverte] = useState(false);
   const [docPrefill, setDocPrefill] = useState(null);
+  const [clientsManuels, setClientsManuels] = useState([]);
   const [dernierBackup, setDernierBackup] = useState(() => { try { return parseInt(localStorage.getItem("gollam_last_backup")) || 0; } catch { return 0; } });
   const [rappelBackupMasque, setRappelBackupMasque] = useState(false);
   const [montrerOnboarding, setMontrerOnboarding] = useState(!onboardingVu());
@@ -355,6 +356,28 @@ export default function App() {
   }, [session, boutiqueActive, vueGlobale, boutiques]);
 
   useEffect(() => { chargerDonnees(); }, [chargerDonnees]);
+
+  // Carnet de clients (ajoutés manuellement) de la boutique active
+  useEffect(() => {
+    if (!boutiqueActive || vueGlobale) { setClientsManuels([]); return; }
+    supabase.from("clients").select("*").eq("boutique_id", boutiqueActive.id)
+      .then(({ data }) => setClientsManuels(data || [])).catch(() => {});
+  }, [boutiqueActive, vueGlobale]);
+
+  // Liste unifiée des clients connus (crédits + ventes nominatives + carnet)
+  const clientsConnus = useMemo(() => {
+    const map = new Map();
+    const add = (nom, phone) => {
+      if (!nom || nom === "Client Comptoir") return;
+      const k = nom.trim().toLowerCase();
+      if (!map.has(k)) map.set(k, { nom: nom.trim(), phone: phone || "" });
+      else if (phone && !map.get(k).phone) map.get(k).phone = phone;
+    };
+    credits.forEach(c => add(c.client, c.client_phone));
+    historique.forEach(h => add(h.details_facture?.client, h.details_facture?.clientPhone));
+    clientsManuels.forEach(c => add(c.nom, c.phone));
+    return [...map.values()].sort((a, b) => a.nom.localeCompare(b.nom));
+  }, [credits, historique, clientsManuels]);
 
   // Au retour de la connexion, on resynchronise les données
   useEffect(() => { if (enLigne) chargerDonnees(); }, [enLigne, chargerDonnees]);
@@ -862,7 +885,7 @@ export default function App() {
                 🌍 Vue globale active.<br />Choisis une boutique précise en haut pour enregistrer une opération.
               </div>
             ) : (
-              <SaisieForm produits={produits} onSubmit={enregistrerForm} chargement={chargement} estEntrepot={estEntrepot} fournisseurs={fournisseurs} />
+              <SaisieForm produits={produits} onSubmit={enregistrerForm} chargement={chargement} estEntrepot={estEntrepot} fournisseurs={fournisseurs} clientsConnus={clientsConnus} />
             )}
           </div>
         )}
@@ -899,7 +922,7 @@ export default function App() {
               </div>
             </div>
           ) : (
-            <Documents produits={produits} boutiqueActive={boutiqueActive} boutique={boutique} credits={credits} historique={historique} onStatut={setStatut} prefill={docPrefill} onPrefillDone={() => setDocPrefill(null)} />
+            <Documents produits={produits} boutiqueActive={boutiqueActive} boutique={boutique} credits={credits} historique={historique} clientsExtra={clientsManuels} onStatut={setStatut} prefill={docPrefill} onPrefillDone={() => setDocPrefill(null)} />
           )
         )}
         {onglet === "chat" && (

@@ -5,7 +5,7 @@ import Scanner from "./Scanner";
 import ProduitSelect from "./ProduitSelect";
 
 // Formulaire de saisie : panier multi-articles pour vente/crédit, simple pour stock/dépense
-export default function SaisieForm({ produits, onSubmit, chargement, estEntrepot = false, fournisseurs = [] }) {
+export default function SaisieForm({ produits, onSubmit, chargement, estEntrepot = false, fournisseurs = [], clientsConnus = [] }) {
   const [type, setType] = useState(estEntrepot ? "ajout" : "vente"); // vente | ajout | depense | credit
 
   // Constructeur de ligne
@@ -267,7 +267,13 @@ export default function SaisieForm({ produits, onSubmit, chargement, estEntrepot
           {type === "credit" && (
             <>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}>
-                <div><label style={labelStyle}>CLIENT</label><input value={client} onChange={e => setClient(e.target.value)} placeholder="Nom du client" style={inputStyle} /></div>
+                <div>
+                  <label style={labelStyle}>CLIENT</label>
+                  <input value={client} list="clients-saisie" placeholder="Nom du client"
+                    onChange={e => { const v = e.target.value; setClient(v); const k = v.trim().toLowerCase(); const trouve = clientsConnus.find(c => c.nom.toLowerCase() === k); if (trouve && trouve.phone && !clientPhone) setClientPhone(trouve.phone); }}
+                    style={inputStyle} />
+                  <datalist id="clients-saisie">{clientsConnus.map((c, i) => <option key={i} value={c.nom} />)}</datalist>
+                </div>
                 <div><label style={labelStyle}>📱 TÉLÉPHONE</label><input type="tel" value={clientPhone} onChange={e => setClientPhone(e.target.value)} placeholder="07 00 00 00 00" style={inputStyle} /></div>
               </div>
               <div style={{ marginBottom: 10 }}>
