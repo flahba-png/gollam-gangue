@@ -40,7 +40,32 @@ export default function SuiviClient({ credits, historique, boutiqueId, boutique,
   };
   const [cfgFid, setCfgFid] = useState(fid);
   const [cfgOuvert, setCfgOuvert] = useState(false);
-  const pointsDe = (totalAchats) => fid.seuil > 0 ? Math.floor((totalAchats || 0) / fid.seuil) : 0;
+  const [rachats, setRachats] = useState({}); // client(lower) -> points déjà rachetés
+
+  const chargerRachats = useCallback(async () => {
+    if (!boutiqueId) { setRachats({}); return; }
+    const { data } = await supabase.from("fidelite_rachats").select("client, points").eq("boutique_id", boutiqueId);
+    const map = {}; (data || []).forEach(r => { const k = (r.client || "").toLowerCase(); map[k] = (map[k] || 0) + (r.points || 0); });
+    setRachats(map);
+  }, [boutiqueId]);
+  useEffect(() => { chargerRachats(); }, [chargerRachats]);
+
+  // Points effectifs = gagnés (total/seuil) − déjà rachetés
+  const pointsDe = (totalAchats, nom) => {
+    if (fid.seuil <= 0) return 0;
+    const gagnes = Math.floor((totalAchats || 0) / fid.seuil);
+    return Math.max(0, gagnes - (rachats[(nom || "").toLowerCase()] || 0));
+  };
+
+  // Utiliser une récompense : consomme `palier` points et le note dans le fil
+  const utiliserRecompense = async (c) => {
+    if (!boutiqueId) return;
+    await supabase.from("fidelite_rachats").insert({ boutique_id: boutiqueId, client: c.nom, points: fid.palier, valeur: fid.valeur, auteur: monNom });
+    await supabase.from("notes_client").insert({ boutique_id: boutiqueId, client: c.nom, auteur: monNom, texte: `🎁 Récompense fidélité utilisée : -${fid.palier} pts (valeur ${fmt(fid.valeur)})` });
+    onStatut && onStatut(`🎁 Récompense de ${fmt(fid.valeur)} appliquée pour ${c.nom}.`);
+    chargerRachats();
+    chargerNotes();
+  };
 
   const enregistrerFidelite = async () => {
     if (!boutiqueId) return;
@@ -205,9 +230,9 @@ export default function SuiviClient({ credits, historique, boutiqueId, boutique,
                     {fmt(c.dette)}
                   </div>
                 )}
-                {fid.active && pointsDe(c.totalAchats) > 0 && (
-                  <div style={{ marginTop: 3, fontSize: 9, fontWeight: "bold", color: pointsDe(c.totalAchats) >= fid.palier ? C.green : C.yellow }}>
-                    {pointsDe(c.totalAchats) >= fid.palier ? "🎁 récompense" : `⭐ ${pointsDe(c.totalAchats)} pt`}
+                {fid.active && pointsDe(c.totalAchats, c.nom) > 0 && (
+                  <div style={{ marginTop: 3, fontSize: 9, fontWeight: "bold", color: pointsDe(c.totalAchats, c.nom) >= fid.palier ? C.green : C.yellow }}>
+                    {pointsDe(c.totalAchats, c.nom) >= fid.palier ? "🎁 récompense" : `⭐ ${pointsDe(c.totalAchats, c.nom)} pt`}
                   </div>
                 )}
               </div>
@@ -254,9 +279,19 @@ export default function SuiviClient({ credits, historique, boutiqueId, boutique,
       {(fid.active || estPatron) && (
         <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", padding: "8px 12px", borderBottom: `1px solid ${C.border}`, background: C.surface, fontSize: 11 }}>
           {fid.active && (() => {
-            const pts = pointsDe(clientSel.totalAchats);
+            const pts = pointsDe(clientSel.totalAchats, clientSel.nom);
             const reco = fid.palier > 0 && pts >= fid.palier;
-            return <span style={{ color: reco ? C.green : C.yellow, fontWeight: "bold" }}>🎁 {pts} pt{reco ? ` · récompense ${fmt(fid.valeur)} dispo` : ` (récompense à ${fid.palier})`}</span>;
+            return (
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                <span style={{ color: reco ? C.green : C.yellow, fontWeight: "bold" }}>🎁 {pts} pt{reco ? ` · ${fmt(fid.valeur)} dispo` : ` (à ${fid.palier})`}</span>
+                {reco && (
+                  <button onClick={() => utiliserRecompense(clientSel)}
+                    style={{ background: C.green, color: C.bg, border: "none", borderRadius: 8, padding: "3px 9px", fontSize: 10, fontWeight: "bold", cursor: "pointer" }}>
+                    Utiliser
+                  </button>
+                )}
+              </span>
+            );
           })()}
           {estPatron && (() => {
             const plaf = plafonds[clientSel.nom.toLowerCase()] || 0;
