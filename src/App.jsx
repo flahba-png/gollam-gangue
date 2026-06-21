@@ -21,6 +21,7 @@ import Admin from "./components/Admin";
 import Compte from "./components/Compte";
 import RechercheGlobale from "./components/RechercheGlobale";
 import Surveillance from "./components/Surveillance";
+import SuiviClient from "./components/SuiviClient";
 import Onboarding, { onboardingVu } from "./components/Onboarding";
 import Documents from "./components/Documents";
 import Chat from "./components/Chat";
@@ -658,6 +659,7 @@ export default function App() {
     { id: "fournisseurs", label: "🚚", title: t("reassort"), badge: produits.filter(p => (p.stock || 0) <= (p.seuil_alerte ?? 2)).length },
     { id: "credits", label: "📒", title: t("credits"), badge: credits.length },
     { id: "clients", label: "👥", title: t("clients") },
+    { id: "suivi", label: "📇", title: "Suivi client", badge: credits.length },
     { id: "documents", label: "🧾", title: t("documents") },
     { id: "chat", label: "💬", title: t("chat") },
     { id: "equipe", label: "🧑‍🤝‍🧑", title: t("equipe") },
@@ -676,6 +678,7 @@ export default function App() {
     { id: "chat", label: "💬", title: t("chat") },
     perms.caisse_voir && { id: "caisse", label: "🔒", title: t("caisse") },
     { id: "clients", label: "👥", title: t("clients") },
+    { id: "suivi", label: "📇", title: "Suivi client" },
   ].filter(Boolean);
   const tabs = estPatron ? tabsPatron : tabsVendeur;
 
@@ -831,6 +834,7 @@ export default function App() {
         )}
         {onglet === "credits" && <Credits credits={credits} kpi={kpi} boutiqueId={boutiqueActive?.id} onRefresh={chargerDonnees} onStatut={setStatut} boutique={boutique} />}
         {onglet === "clients" && <Clients credits={credits} historique={historique} boutique={boutique} boutiqueId={vueGlobale ? null : boutiqueActive?.id} boutiqueActive={boutiqueActive} estPatron={estPatron} onRefresh={chargerDonnees} />}
+        {onglet === "suivi" && <SuiviClient credits={credits} historique={historique} boutiqueId={vueGlobale ? null : boutiqueActive?.id} boutique={boutique} monNom={monNom} onImprimer={h => imprimerFacture(h, boutique)} onNouvelleVente={() => { setOnglet("saisie"); setStatut("🛒 Enregistre la vente/crédit pour ce client."); }} onStatut={setStatut} />}
         {onglet === "documents" && (
           vueGlobale ? (
             <div style={{ padding: "0 12px" }}>
