@@ -54,18 +54,17 @@ export default function SaisieForm({ produits, onSubmit, chargement, estEntrepot
         copie[i] = { ...copie[i], qte: copie[i].qte + q };
         return copie;
       }
-      return [...prev, { produitId: p.id, nom: p.nom, qte: q, pu: prix, remise: 0, stock: p.stock || 0 }];
+      return [...prev, { produitId: p.id, nom: p.nom, qte: q, pu: prix, stock: p.stock || 0 }];
     });
     setProduitId(""); setQuantite("1"); setPrixUnit("");
   };
 
   const retirerLigne = (id) => setPanier(prev => prev.filter(l => l.produitId !== id));
   const majQte = (id, q) => setPanier(prev => prev.map(l => l.produitId === id ? { ...l, qte: Math.max(1, parseInt(q) || 1) } : l));
-  const majRemise = (id, v) => setPanier(prev => prev.map(l => l.produitId === id ? { ...l, remise: Math.max(0, Math.min(parseInt(v) || 0, l.pu * l.qte)) } : l));
+  const majPu = (id, v) => setPanier(prev => prev.map(l => l.produitId === id ? { ...l, pu: Math.max(0, parseInt(v) || 0) } : l));
 
   const totalPanier = panier.reduce((s, l) => s + l.qte * l.pu, 0);
-  const remiseF = panier.reduce((s, l) => s + (parseInt(l.remise) || 0), 0);
-  const totalNet = totalPanier - remiseF;
+  const totalNet = totalPanier;
 
   // Scan : ajoute au panier (vente/crédit) ou sélectionne (stock)
   const onScan = (code) => {
@@ -104,7 +103,7 @@ export default function SaisieForm({ produits, onSubmit, chargement, estEntrepot
     onSubmit({
       action: "vente",
       lignes: panier.map(l => ({ nom: l.nom, quantite: l.qte, prixVente: l.pu })),
-      remise: remiseF,
+      remise: 0,
       isCredit: type === "credit",
       client: client.trim() || (type === "credit" ? "Client Inconnu" : ""),
       clientPhone: clientPhone.trim(),
@@ -238,29 +237,27 @@ export default function SaisieForm({ produits, onSubmit, chargement, estEntrepot
             {panier.length > 0 && (
               <div style={{ display: "flex", gap: 6, fontSize: 9, color: C.muted, fontWeight: "bold", padding: "0 0 4px", letterSpacing: 0.3 }}>
                 <span style={{ flex: 1 }}>ARTICLE</span>
+                <span style={{ width: 82, textAlign: "center" }}>PRIX UNIT.</span>
                 <span style={{ width: 46, textAlign: "center" }}>QTÉ</span>
-                <span style={{ width: 74, textAlign: "center" }}>REMISE</span>
                 <span style={{ width: 18 }} />
               </div>
             )}
-            {panier.map(l => {
-              const net = l.qte * l.pu - (parseInt(l.remise) || 0);
-              return (
+            {panier.map(l => (
               <div key={l.produitId} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 0", borderBottom: `1px solid ${C.border}` }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ color: C.text, fontSize: 13, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{l.nom}</div>
-                  <div style={{ color: C.muted, fontSize: 10 }}>{fmt(l.pu)} × {l.qte}{(parseInt(l.remise) || 0) > 0 ? ` − ${fmt(l.remise)}` : ""} = <b style={{ color: C.green }}>{fmt(net)}</b></div>
+                  <div style={{ color: C.muted, fontSize: 10 }}>{fmt(l.pu)} × {l.qte} = <b style={{ color: C.green }}>{fmt(l.pu * l.qte)}</b></div>
                 </div>
+                <input type="number" min="0" inputMode="numeric" value={l.pu} onChange={e => majPu(l.produitId, e.target.value)} title="Prix unitaire (modifiable)"
+                  style={{ width: 82, padding: "5px", background: C.surface, border: `1px solid ${C.border}`, borderRadius: 6, color: C.text, fontSize: 12, textAlign: "right" }} />
                 <input type="number" min="1" value={l.qte} onChange={e => majQte(l.produitId, e.target.value)} title="Quantité"
                   style={{ width: 46, padding: "5px", background: C.surface, border: `1px solid ${C.border}`, borderRadius: 6, color: C.text, fontSize: 12, textAlign: "center" }} />
-                <input type="number" min="0" value={l.remise} onChange={e => majRemise(l.produitId, e.target.value)} title="Remise sur cet article" placeholder="0"
-                  style={{ width: 74, padding: "5px", background: C.surface, border: `1px solid ${C.border}`, borderRadius: 6, color: (parseInt(l.remise) || 0) > 0 ? C.yellow : C.text, fontSize: 12, textAlign: "right" }} />
                 <button type="button" onClick={() => retirerLigne(l.produitId)} style={{ background: C.red + "22", color: C.red, border: `1px solid ${C.red}44`, padding: "4px 6px", borderRadius: 6, fontSize: 11, cursor: "pointer" }}>✕</button>
               </div>
-            );})}
+            ))}
             {panier.length > 0 && (
               <div style={{ display: "flex", justifyContent: "space-between", marginTop: 10, fontSize: 14, fontWeight: "bold", color: C.text }}>
-                <span>{remiseF > 0 ? `NET À PAYER (remise ${fmt(remiseF)})` : "TOTAL"}</span>
+                <span>TOTAL</span>
                 <span style={{ color: C.green }}>{fmt(totalNet)}</span>
               </div>
             )}

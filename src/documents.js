@@ -49,7 +49,15 @@ export const imprimerDocument = (doc, boutique) => {
     .totaux .grand td{font-size:16px;font-weight:bold;border-top:2px solid #222;color:#1FD08A}
     .notes{margin-top:24px;font-size:12px;color:#555;background:#f8f8f8;padding:12px;border-radius:6px}
     .foot{margin-top:30px;text-align:center;font-size:11px;color:#999;border-top:1px solid #ddd;padding-top:12px}
+    .barre{position:sticky;top:0;z-index:10;display:flex;gap:8px;justify-content:space-between;align-items:center;background:#0a8a5e;color:#fff;padding:10px 14px;border-radius:10px;margin:-14px 0 18px}
+    .barre button{background:#fff;color:#0a8a5e;border:none;border-radius:6px;padding:9px 14px;font-weight:bold;font-size:14px;cursor:pointer}
+    @media print{.noprint{display:none!important}}
   </style></head><body>
+    <div class="barre noprint">
+      <button onclick="window.close()">← Retour</button>
+      <span style="font-weight:bold">${titre} ${doc.numero || ""}</span>
+      <button onclick="window.print()">🖨️ Imprimer</button>
+    </div>
     <div class="top">
       <div>${boutique?.logo ? `<img src="${boutique.logo}" alt="logo" style="max-width:140px;max-height:64px;object-fit:contain;float:left;margin-right:12px" />` : `<div class="logo">${(boutique?.nom || "G").charAt(0).toUpperCase()}</div>`}
         <div class="bn">${boutique?.nom || "Ma Boutique"}</div>

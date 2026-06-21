@@ -67,7 +67,14 @@ export const imprimerFacture = (log, boutique) => {
     td{padding:4px 0;border-bottom:1px dashed #ccc;font-size:11px}
     .tot{font-size:13px;font-weight:bold;text-align:right;margin-top:8px}
     .f{text-align:center;margin-top:14px;font-size:9px;border-top:1px dashed #000;padding-top:6px}
+    .barre{display:flex;gap:6px;justify-content:space-between;align-items:center;margin-bottom:8px}
+    .barre button{flex:1;background:#0a8a5e;color:#fff;border:none;border-radius:6px;padding:8px 4px;font-weight:bold;font-size:12px;cursor:pointer}
+    @media print{.noprint{display:none!important}}
   </style></head><body>
+    <div class="barre noprint">
+      <button onclick="window.close()">← Retour</button>
+      <button onclick="window.print()">🖨️ Imprimer</button>
+    </div>
     <div class="h">${boutique?.logo ? `<img src="${boutique.logo}" alt="logo" style="max-width:120px;max-height:60px;object-fit:contain;margin:0 auto 6px;display:block" />` : `<div class="logo">${(boutique?.nom || "G").charAt(0).toUpperCase()}</div>`}<div class="t">${(boutique?.nom || "GOLLAM").toUpperCase()}</div>
     <div class="i">Pièces Auto & Moto — ${boutique?.ville || "Côte d'Ivoire"}</div>
     <div class="i">${today()} à ${log.heure}</div>
