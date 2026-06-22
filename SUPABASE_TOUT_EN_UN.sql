@@ -527,4 +527,19 @@ create policy "clients_membre" on clients for all
   with check (boutique_id in (select id from boutiques where proprietaire_id = auth.uid())
      or boutique_id in (select boutique_id from membres where user_id = auth.uid()));
 
+-- ========== MIGRATION 31 : journal des erreurs (monitoring) ==========
+create table if not exists erreurs (
+  id bigint generated always as identity primary key,
+  message text, stack text, url text, user_email text,
+  created_at timestamptz default now()
+);
+alter table erreurs enable row level security;
+-- tout utilisateur connecté peut logger une erreur
+drop policy if exists "erreurs_insert" on erreurs;
+create policy "erreurs_insert" on erreurs for insert to authenticated with check (true);
+-- lecture réservée à l'admin (toi)
+drop policy if exists "erreurs_admin" on erreurs;
+create policy "erreurs_admin" on erreurs for select
+  using (lower(auth.jwt() ->> 'email') = 'flahba@icloud.com');
+
 -- ✅ Terminé. Toutes les tables, colonnes et règles de sécurité sont en place.

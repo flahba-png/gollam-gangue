@@ -4,6 +4,9 @@ import './index.css'
 import App from './App.jsx'
 import ErrorBoundary from './ErrorBoundary.jsx'
 import InstallPrompt from './components/InstallPrompt.jsx'
+import { installerMonitoring } from './monitoring.js'
+
+installerMonitoring();
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

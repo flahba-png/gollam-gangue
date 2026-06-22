@@ -1,4 +1,5 @@
 import React from "react";
+import { logErreur } from "./monitoring";
 
 // Filet de sécurité : capture toute erreur de rendu et affiche un message
 // lisible au lieu d'un écran noir. Permet aussi de vider le cache d'un clic.
@@ -14,6 +15,7 @@ export default class ErrorBoundary extends React.Component {
 
   componentDidCatch(error, info) {
     console.error("Erreur capturée :", error, info);
+    logErreur(error?.message || String(error), error?.stack || info?.componentStack);
   }
 
   reinitialiser = async () => {
