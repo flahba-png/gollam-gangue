@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from "react";
-import { C, fmt, appeler } from "../theme";
+import { C, fmt, appeler, heure, todayISO } from "../theme";
 import { supabase } from "../supabase";
 import { relancerWhatsApp } from "../relance";
 
@@ -27,6 +27,8 @@ export default function SuiviClient({ credits, historique, boutiqueId, boutique,
   const [clientSel, setClientSel] = useState(null);
   const [notes, setNotes] = useState([]);
   const [texte, setTexte] = useState("");
+  const [paiementOuvert, setPaiementOuvert] = useState(false);
+  const [montantPaiement, setMontantPaiement] = useState("");
   const [plafonds, setPlafonds] = useState({}); // client(lower) -> plafond
   const [editPlaf, setEditPlaf] = useState("");
   const [clientsManuels, setClientsManuels] = useState([]);
@@ -183,6 +185,38 @@ export default function SuiviClient({ credits, historique, boutiqueId, boutique,
     setTexte("");
     const { error } = await supabase.from("notes_client").insert({ boutique_id: boutiqueId, client: clientSel.nom, auteur: monNom, texte: tx });
     if (error) { onStatut && onStatut("❌ " + error.message); setTexte(tx); return; }
+    chargerNotes();
+  };
+
+  // Encaisse un paiement : l'applique aux crédits du client (plus anciens d'abord)
+  const encaisser = async () => {
+    const montant = parseInt(montantPaiement) || 0;
+    if (montant <= 0 || !clientSel || !boutiqueId) { onStatut && onStatut("⚠️ Entre un montant valide."); return; }
+    if ((clientSel.dette || 0) <= 0) { onStatut && onStatut("ℹ️ Ce client n'a pas de dette à encaisser."); return; }
+    if (montant > (clientSel.dette || 0)) { onStatut && onStatut(`⚠️ Dépasse la dette (${fmt(clientSel.dette)}).`); return; }
+
+    const fiches = credits
+      .filter(c => norm(c.client) === norm(clientSel.nom) && (c.reste_a_payer || 0) > 0)
+      .sort((a, b) => new Date(a.created_at || a.date || 0) - new Date(b.created_at || b.date || 0));
+
+    let reste = montant;
+    for (const f of fiches) {
+      if (reste <= 0) break;
+      const aPayer = Math.min(reste, f.reste_a_payer);
+      const nouveau = f.reste_a_payer - aPayer;
+      await supabase.from("historique").insert({
+        boutique_id: boutiqueId, heure: heure(), date_iso: todayISO(),
+        texte: `💰 Versement de ${f.client} (${f.article})`, type: "vente", montant: aPayer, benefice_etabli: 0,
+        details_facture: { client: f.client, article: `Acompte : ${f.article}`, total: aPayer, reste: nouveau, type: nouveau === 0 ? "Solde de Compte" : "Remboursement Partiel" },
+      });
+      if (nouveau === 0) await supabase.from("credits").delete().eq("id", f.id);
+      else await supabase.from("credits").update({ avance: (f.avance || 0) + aPayer, reste_a_payer: nouveau }).eq("id", f.id);
+      reste -= aPayer;
+    }
+    await supabase.from("notes_client").insert({ boutique_id: boutiqueId, client: clientSel.nom, auteur: monNom, texte: `💰 Paiement reçu : ${fmt(montant)}` });
+    setMontantPaiement(""); setPaiementOuvert(false);
+    onStatut && onStatut(`✅ Paiement de ${fmt(montant)} encaissé.`);
+    onRefresh && onRefresh();
     chargerNotes();
   };
 
@@ -407,15 +441,36 @@ export default function SuiviClient({ credits, historique, boutiqueId, boutique,
             style={{ flex: 1, padding: "8px 0", background: C.green + "18", color: C.green, border: `1px solid ${C.green}44`, borderRadius: 8, fontSize: 12, fontWeight: "bold", cursor: "pointer" }}>
             🛒 Vente
           </button>
+          <button onClick={() => { setPaiementOuvert(o => !o); setMontantPaiement(""); }}
+            style={{ flex: 1, padding: "8px 0", background: (clientSel.dette > 0 ? C.yellow : C.muted) + "18", color: clientSel.dette > 0 ? C.yellow : C.muted, border: `1px solid ${(clientSel.dette > 0 ? C.yellow : C.border)}44`, borderRadius: 8, fontSize: 12, fontWeight: "bold", cursor: "pointer" }}>
+            💰 Paiement
+          </button>
           <button onClick={() => onDevis && onDevis(clientSel.nom, clientSel.phone)}
-            style={{ flex: 1, padding: "8px 0", background: C.yellow + "18", color: C.yellow, border: `1px solid ${C.yellow}44`, borderRadius: 8, fontSize: 12, fontWeight: "bold", cursor: "pointer" }}>
+            style={{ flex: 1, padding: "8px 0", background: C.blue + "18", color: C.blue, border: `1px solid ${C.blue}44`, borderRadius: 8, fontSize: 12, fontWeight: "bold", cursor: "pointer" }}>
             📝 Devis
           </button>
           <button onClick={etatDeCompte}
-            style={{ flex: 1, padding: "8px 0", background: C.blue + "18", color: C.blue, border: `1px solid ${C.blue}44`, borderRadius: 8, fontSize: 12, fontWeight: "bold", cursor: "pointer" }}>
+            style={{ flex: 1, padding: "8px 0", background: C.surface2, color: C.text, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 12, fontWeight: "bold", cursor: "pointer" }}>
             📄 État
           </button>
         </div>
+
+        {/* ENCAISSEMENT D'UN PAIEMENT */}
+        {paiementOuvert && (
+          <div style={{ background: C.surface2, borderRadius: 8, border: `1px solid ${C.yellow}55`, padding: 10, marginBottom: 8 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: C.muted, marginBottom: 6 }}>
+              <span>💰 Paiement reçu de {clientSel.nom}</span>
+              <span style={{ color: clientSel.dette > 0 ? C.red : C.green, fontWeight: "bold" }}>Dette : {fmt(clientSel.dette || 0)}</span>
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <input type="number" inputMode="numeric" value={montantPaiement} onChange={e => setMontantPaiement(e.target.value)}
+                placeholder="Montant reçu" autoFocus
+                style={{ flex: 1, padding: "9px 12px", background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, color: C.text, fontSize: 13 }} />
+              <button onClick={encaisser}
+                style={{ padding: "9px 16px", background: C.green, color: C.bg, border: "none", borderRadius: 8, fontWeight: "bold", fontSize: 13, cursor: "pointer" }}>Encaisser</button>
+            </div>
+          </div>
+        )}
         <form onSubmit={envoyer} style={{ display: "flex", gap: 8 }}>
           <input value={texte} onChange={e => setTexte(e.target.value)} placeholder="Écrire une note sur ce client..."
             style={{ flex: 1, padding: "10px 14px", background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 20, color: C.text, fontSize: 13, outline: "none" }} />
