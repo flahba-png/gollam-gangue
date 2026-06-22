@@ -1,5 +1,13 @@
 import { fmt, today, modePaiement, envoyerWhatsApp } from "./theme";
 
+// Libellé du paiement : « Espèces » ou, si mixte, « Espèces 1 000 + Wave 1 000 »
+const libellePaiement = (log) => {
+  if (log.paiements && typeof log.paiements === "object" && Object.keys(log.paiements).length > 1) {
+    return Object.entries(log.paiements).map(([k, v]) => `${modePaiement(k).label} ${fmt(v)}`).join(" + ");
+  }
+  return modePaiement(log.mode_paiement).label;
+};
+
 // Génère un reçu texte propre, lisible dans WhatsApp
 export const genererTexteRecu = (log, boutique) => {
   const info = log.details_facture || { client: "Client Comptoir", article: log.texte, total: log.montant, reste: 0, type: "Vente" };
@@ -31,7 +39,7 @@ export const genererTexteRecu = (log, boutique) => {
   }
   lignes.push(
     `💰 ${taux > 0 ? "TTC" : "Net"} : *${fmt(info.total)}*`,
-    `${mode.emoji} Paiement : ${mode.label}`,
+    `${mode.emoji} Paiement : ${libellePaiement(log)}`,
   );
 
   if (info.reste > 0) {
@@ -80,7 +88,7 @@ export const imprimerFacture = (log, boutique) => {
     <div class="i">${today()} à ${log.heure}</div>
     <div class="i">Reçu N° ${(log.id ?? "").toString().slice(-6).toUpperCase()}</div></div>
     <div class="i"><b>CLIENT :</b> ${info.client}</div>
-    <div class="i"><b>PAIEMENT :</b> ${mode.emoji} ${mode.label}</div>
+    <div class="i"><b>PAIEMENT :</b> ${mode.emoji} ${libellePaiement(log)}</div>
     <table><tr style="font-weight:bold"><td>Article</td><td style="text-align:right">Montant</td></tr>
     ${Array.isArray(info.lignes) && info.lignes.length
       ? info.lignes.map(l => `<tr><td>${l.qte}x ${l.nom}</td><td style="text-align:right">${fmt(l.total)}</td></tr>`).join("")

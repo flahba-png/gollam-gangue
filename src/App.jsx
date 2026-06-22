@@ -388,9 +388,15 @@ export default function App() {
   // Utilisé à la fois pour l'écriture immédiate (en ligne) et pour rejouer la file.
   // Retourne { ok, err }.
   const ecrireOperation = async (donnees, boutiqueId) => {
-    const { action, nom, quantite, prixVente, prixAchat, montantDepense, isCredit, client, avance, modePaiement = "especes", clientPhone = "" } = donnees;
+    const { action, nom, quantite, prixVente, prixAchat, montantDepense, isCredit, client, avance, modePaiement = "especes", clientPhone = "", paiements = null } = donnees;
     const uid = boutiqueId;
-    const log = { boutique_id: uid, heure: heure(), date_iso: todayISO(), texte: "", type: action, montant: 0, benefice_etabli: 0, details_facture: null, mode_paiement: modePaiement, vendeur_nom: monNom };
+    const log = { boutique_id: uid, heure: heure(), date_iso: todayISO(), texte: "", type: action, montant: 0, benefice_etabli: 0, details_facture: null, mode_paiement: modePaiement, paiements: null, vendeur_nom: monNom };
+    // Paiement mixte : on garde la répartition et on étiquette le mode
+    if (paiements && typeof paiements === "object" && Object.keys(paiements).length) {
+      log.paiements = paiements;
+      const cles = Object.keys(paiements);
+      log.mode_paiement = cles.length > 1 ? "mixte" : cles[0];
+    }
 
     if (action === "vente") {
       // Panier multi-articles : compat avec l'ancien format mono-produit

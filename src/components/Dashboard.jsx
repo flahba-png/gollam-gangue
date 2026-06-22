@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { C, fmt, MODES_PAIEMENT, todayISO, ageEnJours, SEUIL_RETARD } from "../theme";
+import { C, fmt, MODES_PAIEMENT, todayISO, ageEnJours, SEUIL_RETARD, repartitionPaiement } from "../theme";
 import { t } from "../i18n";
 
 const StatCard = ({ label, value, color, sub }) => (
@@ -80,8 +80,8 @@ export default function Dashboard({ kpi, historique, credits, produits, estPatro
   const totauxParMode = MODES_PAIEMENT.map(m => ({
     ...m,
     total: histoJour
-      .filter(h => (h.type === "vente" || h.type === "retour") && (h.mode_paiement || "especes") === m.id)
-      .reduce((s, h) => s + (h.type === "retour" ? -(h.montant || 0) : (h.montant || 0)), 0),
+      .filter(h => h.type === "vente" || h.type === "retour")
+      .reduce((s, h) => { const part = repartitionPaiement(h)[m.id] || 0; return s + (h.type === "retour" ? -part : part); }, 0),
   }));
   const totalEncaisse = totauxParMode.reduce((s, m) => s + m.total, 0);
 

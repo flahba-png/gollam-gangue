@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { C, fmt, todayISO, MODES_PAIEMENT } from "../theme";
+import { C, fmt, todayISO, MODES_PAIEMENT, repartitionPaiement } from "../theme";
 import { t } from "../i18n";
 import { supabase } from "../supabase";
 
@@ -35,8 +35,8 @@ export default function Cloture({ historique, boutiqueActive, monNom, estPatron,
       if (h.date_iso !== dateF) return;
       if (h.type !== "vente" && h.type !== "retour") return;
       if (vendeurFiltre !== "tous" && (h.vendeur_nom || "Patron") !== vendeurFiltre) return;
-      const mp = h.mode_paiement || "especes";
-      tot[mp] = (tot[mp] || 0) + (h.type === "retour" ? -(h.montant || 0) : (h.montant || 0));
+      const signe = h.type === "retour" ? -1 : 1;
+      Object.entries(repartitionPaiement(h)).forEach(([mode, montant]) => { tot[mode] = (tot[mode] || 0) + signe * (montant || 0); });
     });
     return tot;
   }, [historique, dateF, vendeurFiltre]);

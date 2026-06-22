@@ -26,6 +26,8 @@ export default function SaisieForm({ produits, onSubmit, chargement, estEntrepot
   const [remise, setRemise] = useState("");
   const [description, setDescription] = useState("");
   const [modePaiement, setModePaiement] = useState("especes");
+  const [mixte, setMixte] = useState(false);          // paiement réparti sur plusieurs modes
+  const [repart, setRepart] = useState({});           // mode -> montant (string)
 
   const [uniteSaisie, setUniteSaisie] = useState("piece"); // piece | carton (réception stock)
   const [scanOuvert, setScanOuvert] = useState(false);
@@ -37,7 +39,7 @@ export default function SaisieForm({ produits, onSubmit, chargement, estEntrepot
   const resetTout = () => {
     setProduitId(""); setNouveauNom(""); setQuantite("1"); setPrixUnit(""); setPrixAchat("");
     setPanier([]); setClient(""); setClientPhone(""); setAvance(""); setRemise(""); setDescription("");
-    setModePaiement("especes"); setUniteSaisie("piece"); setFournisseurId("");
+    setModePaiement("especes"); setMixte(false); setRepart({}); setUniteSaisie("piece"); setFournisseurId("");
   };
 
   // Ajoute la ligne courante au panier
@@ -65,6 +67,10 @@ export default function SaisieForm({ produits, onSubmit, chargement, estEntrepot
 
   const totalPanier = panier.reduce((s, l) => s + l.qte * l.pu, 0);
   const totalNet = totalPanier;
+
+  // Paiement mixte : montant à encaisser maintenant + somme répartie
+  const cibleEncaisse = type === "credit" ? (parseInt(avance) || 0) : totalNet;
+  const sommeRepart = MODES_PAIEMENT.reduce((s, m) => s + (parseInt(repart[m.id]) || 0), 0);
 
   // Scan : ajoute au panier (vente/crédit) ou sélectionne (stock)
   const onScan = (code) => {
@@ -100,6 +106,16 @@ export default function SaisieForm({ produits, onSubmit, chargement, estEntrepot
     // vente / crédit : panier
     if (panier.length === 0) { setScanMsg("⚠️ Ajoute au moins un article au panier."); return; }
     if (totalPanier <= 0) { setScanMsg("⚠️ Le total est de 0 F — vérifie les prix."); return; }
+
+    // Paiement mixte : la répartition doit égaler le montant à encaisser
+    let paiements = null;
+    if (mixte) {
+      if (cibleEncaisse <= 0) { setScanMsg("⚠️ Rien à encaisser pour un paiement mixte."); return; }
+      if (sommeRepart !== cibleEncaisse) { setScanMsg(`⚠️ La répartition (${fmt(sommeRepart)}) doit égaler ${fmt(cibleEncaisse)}.`); return; }
+      paiements = {};
+      MODES_PAIEMENT.forEach(m => { const v = parseInt(repart[m.id]) || 0; if (v > 0) paiements[m.id] = v; });
+    }
+
     onSubmit({
       action: "vente",
       lignes: panier.map(l => ({ nom: l.nom, quantite: l.qte, prixVente: l.pu })),
@@ -109,6 +125,7 @@ export default function SaisieForm({ produits, onSubmit, chargement, estEntrepot
       clientPhone: clientPhone.trim(),
       avance: parseInt(avance) || 0,
       modePaiement,
+      paiements,
     });
     resetTout();
   };
@@ -289,19 +306,50 @@ export default function SaisieForm({ produits, onSubmit, chargement, estEntrepot
       {/* MODE DE PAIEMENT (sauf ajout) */}
       {type !== "ajout" && (
         <div style={{ marginBottom: 12 }}>
-          <label style={labelStyle}>{t("mode_paiement").toUpperCase()}{type === "credit" ? " (avance)" : ""}</label>
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-            {MODES_PAIEMENT.map(m => (
-              <button key={m.id} type="button" onClick={() => setModePaiement(m.id)}
-                style={{ flex: "1 1 30%", padding: "8px 4px", borderRadius: 8, fontSize: 11, fontWeight: "bold", cursor: "pointer",
-                  display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
-                  border: `1px solid ${modePaiement === m.id ? m.color : C.border}`,
-                  background: modePaiement === m.id ? m.color + "22" : "transparent",
-                  color: modePaiement === m.id ? m.color : C.muted }}>
-                <span>{m.emoji}</span> {m.label}
-              </button>
-            ))}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <label style={labelStyle}>{t("mode_paiement").toUpperCase()}{type === "credit" ? " (avance)" : ""}</label>
+            <button type="button" onClick={() => setMixte(v => !v)}
+              style={{ background: "transparent", border: "none", color: mixte ? C.green : C.blue, fontSize: 11, fontWeight: "bold", cursor: "pointer" }}>
+              {mixte ? "← Paiement simple" : "➗ Paiement mixte"}
+            </button>
           </div>
+
+          {!mixte ? (
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              {MODES_PAIEMENT.map(m => (
+                <button key={m.id} type="button" onClick={() => setModePaiement(m.id)}
+                  style={{ flex: "1 1 30%", padding: "8px 4px", borderRadius: 8, fontSize: 11, fontWeight: "bold", cursor: "pointer",
+                    display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
+                    border: `1px solid ${modePaiement === m.id ? m.color : C.border}`,
+                    background: modePaiement === m.id ? m.color + "22" : "transparent",
+                    color: modePaiement === m.id ? m.color : C.muted }}>
+                  <span>{m.emoji}</span> {m.label}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div style={{ background: C.surface2, borderRadius: 8, border: `1px solid ${C.border}`, padding: 10 }}>
+              {MODES_PAIEMENT.map(m => (
+                <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                  <span style={{ flex: 1, fontSize: 12, color: C.text }}>{m.emoji} {m.label}</span>
+                  <input type="number" inputMode="numeric" value={repart[m.id] || ""} placeholder="0"
+                    onChange={e => setRepart(r => ({ ...r, [m.id]: e.target.value }))}
+                    style={{ width: 100, padding: "6px 8px", background: C.surface, border: `1px solid ${C.border}`, borderRadius: 6, color: m.color, fontSize: 12, textAlign: "right" }} />
+                </div>
+              ))}
+              <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6, paddingTop: 6, borderTop: `1px solid ${C.border}`, fontSize: 12, fontWeight: "bold" }}>
+                <span style={{ color: C.muted }}>Réparti / à encaisser</span>
+                <span style={{ color: sommeRepart === cibleEncaisse && cibleEncaisse > 0 ? C.green : C.red }}>
+                  {fmt(sommeRepart)} / {fmt(cibleEncaisse)}
+                </span>
+              </div>
+              {sommeRepart !== cibleEncaisse && cibleEncaisse > 0 && (
+                <div style={{ fontSize: 10, color: C.red, marginTop: 3, textAlign: "right" }}>
+                  {sommeRepart > cibleEncaisse ? `Trop de ${fmt(sommeRepart - cibleEncaisse)}` : `Manque ${fmt(cibleEncaisse - sommeRepart)}`}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 

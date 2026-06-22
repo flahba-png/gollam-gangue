@@ -542,4 +542,8 @@ drop policy if exists "erreurs_admin" on erreurs;
 create policy "erreurs_admin" on erreurs for select
   using (lower(auth.jwt() ->> 'email') = 'flahba@icloud.com');
 
+-- ========== MIGRATION 32 : paiement mixte (répartition par mode) ==========
+-- Ex: une vente de 2000 payée 1000 espèces + 1000 Wave → {"especes":1000,"wave":1000}
+alter table historique add column if not exists paiements jsonb;
+
 -- ✅ Terminé. Toutes les tables, colonnes et règles de sécurité sont en place.

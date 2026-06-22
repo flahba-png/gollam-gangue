@@ -97,6 +97,13 @@ export const MODES_PAIEMENT = [
 export const modePaiement = (id) =>
   MODES_PAIEMENT.find((m) => m.id === id) || MODES_PAIEMENT[0];
 
+// Répartition d'un mouvement par mode de paiement.
+// Paiement mixte → h.paiements ({especes:1000, wave:1000}) ; sinon tout sur le mode unique.
+export const repartitionPaiement = (h) => {
+  if (h && h.paiements && typeof h.paiements === "object") return h.paiements;
+  return { [(h && h.mode_paiement) || "especes"]: (h && h.montant) || 0 };
+};
+
 // ==========================================
 // TÉLÉPHONE & WHATSAPP
 // ==========================================
