@@ -12,7 +12,14 @@
     <title>Gollam Platform — Gestion commerciale</title>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- Splash screen (fond sombre) affiché jusqu'au montage de l'app -->
+      <div id="splash" style="position:fixed;inset:0;background:#0C1016;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;font-family:-apple-system,'Segoe UI',sans-serif">
+        <img src="/logo-gollam-dark.png" alt="Gollam" style="width:210px;max-width:62%" />
+        <div style="width:34px;height:34px;border:3px solid rgba(31,208,138,0.25);border-top-color:#1FD08A;border-radius:50%;animation:gspin .8s linear infinite"></div>
+      </div>
+      <style>@keyframes gspin{to{transform:rotate(360deg)}}</style>
+    </div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
