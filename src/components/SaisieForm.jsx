@@ -5,7 +5,7 @@ import Scanner from "./Scanner";
 import ProduitSelect from "./ProduitSelect";
 
 // Formulaire de saisie : panier multi-articles pour vente/crédit, simple pour stock/dépense
-export default function SaisieForm({ produits, onSubmit, chargement, estEntrepot = false, fournisseurs = [], clientsConnus = [] }) {
+export default function SaisieForm({ produits, onSubmit, chargement, estEntrepot = false, fournisseurs = [], clientsConnus = [], promos = {} }) {
   const [type, setType] = useState(estEntrepot ? "ajout" : "vente"); // vente | ajout | depense | credit
 
   // Constructeur de ligne
@@ -47,7 +47,10 @@ export default function SaisieForm({ produits, onSubmit, chargement, estEntrepot
     const p = prod || produitSel;
     if (!p) { setScanMsg("⚠️ Choisis un produit."); return; }
     const q = parseInt(qte) || 1;
-    const prix = pu != null ? pu : (parseInt(prixUnit) || p.prix_vente || 0);
+    let prix = pu != null ? pu : (parseInt(prixUnit) || p.prix_vente || 0);
+    // Promotion active sur cet article → prix remisé automatiquement
+    const pct = promos[(p.nom || "").trim().toLowerCase()] || 0;
+    if (pct > 0) prix = Math.round(prix * (1 - pct / 100));
     setPanier(prev => {
       // Fusionne si déjà présent
       const i = prev.findIndex(l => l.produitId === p.id);
@@ -56,7 +59,7 @@ export default function SaisieForm({ produits, onSubmit, chargement, estEntrepot
         copie[i] = { ...copie[i], qte: copie[i].qte + q };
         return copie;
       }
-      return [...prev, { produitId: p.id, nom: p.nom, qte: q, pu: prix, stock: p.stock || 0 }];
+      return [...prev, { produitId: p.id, nom: p.nom, qte: q, pu: prix, promo: pct, stock: p.stock || 0 }];
     });
     setProduitId(""); setQuantite("1"); setPrixUnit("");
   };
@@ -262,7 +265,10 @@ export default function SaisieForm({ produits, onSubmit, chargement, estEntrepot
             {panier.map(l => (
               <div key={l.produitId} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 0", borderBottom: `1px solid ${C.border}` }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ color: C.text, fontSize: 13, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{l.nom}</div>
+                  <div style={{ color: C.text, fontSize: 13, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                    {l.nom}
+                    {l.promo > 0 && <span style={{ marginLeft: 6, fontSize: 9, fontWeight: "bold", color: C.red, background: C.red + "18", borderRadius: 8, padding: "1px 6px" }}>🎉 −{l.promo}%</span>}
+                  </div>
                   <div style={{ color: C.muted, fontSize: 10 }}>{fmt(l.pu)} × {l.qte} = <b style={{ color: C.green }}>{fmt(l.pu * l.qte)}</b></div>
                 </div>
                 <input type="number" min="0" inputMode="numeric" value={l.pu} onChange={e => majPu(l.produitId, e.target.value)} title="Prix unitaire (modifiable)"

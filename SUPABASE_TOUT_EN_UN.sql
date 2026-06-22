@@ -546,4 +546,46 @@ create policy "erreurs_admin" on erreurs for select
 -- Ex: une vente de 2000 payée 1000 espèces + 1000 Wave → {"especes":1000,"wave":1000}
 alter table historique add column if not exists paiements jsonb;
 
+-- ========== MIGRATION 33 : bons de commande d'achat (PO formels) ==========
+create table if not exists bons_commande (
+  id bigint generated always as identity primary key,
+  boutique_id uuid references boutiques(id) on delete cascade not null,
+  fournisseur_id uuid references fournisseurs(id) on delete set null,
+  fournisseur_nom text,
+  date date,
+  prevu_le date,
+  statut text default 'en_attente',   -- en_attente | recu_partiel | recu
+  montant integer default 0,
+  lignes jsonb default '[]'::jsonb,    -- [{ nom, qte, qte_recue, prix }]
+  cree_par text,
+  created_at timestamptz default now()
+);
+alter table bons_commande enable row level security;
+drop policy if exists "boncmd_membre" on bons_commande;
+create policy "boncmd_membre" on bons_commande for all
+  using (boutique_id in (select id from boutiques where proprietaire_id = auth.uid())
+     or boutique_id in (select boutique_id from membres where user_id = auth.uid()))
+  with check (boutique_id in (select id from boutiques where proprietaire_id = auth.uid())
+     or boutique_id in (select boutique_id from membres where user_id = auth.uid()));
+
+-- ========== MIGRATION 34 : campagnes de promotion ==========
+create table if not exists promotions (
+  id bigint generated always as identity primary key,
+  boutique_id uuid references boutiques(id) on delete cascade not null,
+  date_debut date,
+  date_fin date,
+  pourcentage integer default 0,
+  notes text,
+  produits jsonb default '[]'::jsonb,  -- liste de noms de produits ciblés
+  cree_par text,
+  created_at timestamptz default now()
+);
+alter table promotions enable row level security;
+drop policy if exists "promo_membre" on promotions;
+create policy "promo_membre" on promotions for all
+  using (boutique_id in (select id from boutiques where proprietaire_id = auth.uid())
+     or boutique_id in (select boutique_id from membres where user_id = auth.uid()))
+  with check (boutique_id in (select id from boutiques where proprietaire_id = auth.uid())
+     or boutique_id in (select boutique_id from membres where user_id = auth.uid()));
+
 -- ✅ Terminé. Toutes les tables, colonnes et règles de sécurité sont en place.

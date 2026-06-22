@@ -26,6 +26,8 @@ const Surveillance = lazy(() => import("./components/Surveillance"));
 const Messages = lazy(() => import("./components/Messages"));
 const Journal = lazy(() => import("./components/Journal"));
 const Documents = lazy(() => import("./components/Documents"));
+const BonsCommande = lazy(() => import("./components/BonsCommande"));
+const Promotions = lazy(() => import("./components/Promotions"));
 import { bipVente, bipErreur } from "./feedback";
 import { ADMIN_EMAIL, DUREE_ESSAI_JOURS, ADMIN_WHATSAPP, PRIX_ABONNEMENT } from "./config";
 import { imprimerFacture, envoyerRecuWhatsApp } from "./receipt";
@@ -61,6 +63,7 @@ export default function App() {
   const [surveillanceOuverte, setSurveillanceOuverte] = useState(false);
   const [docPrefill, setDocPrefill] = useState(null);
   const [clientsManuels, setClientsManuels] = useState([]);
+  const [promotions, setPromotions] = useState([]);
   const [dernierBackup, setDernierBackup] = useState(() => { try { return parseInt(localStorage.getItem("gollam_last_backup")) || 0; } catch { return 0; } });
   const [rappelBackupMasque, setRappelBackupMasque] = useState(false);
   const [montrerOnboarding, setMontrerOnboarding] = useState(!onboardingVu());
@@ -363,6 +366,29 @@ export default function App() {
     supabase.from("clients").select("*").eq("boutique_id", boutiqueActive.id)
       .then(({ data }) => setClientsManuels(data || [])).catch(() => {});
   }, [boutiqueActive, vueGlobale]);
+
+  // Promotions de la boutique active (pour appliquer le prix remisé en vente)
+  const chargerPromos = useCallback(() => {
+    if (!boutiqueActive || vueGlobale) { setPromotions([]); return; }
+    supabase.from("promotions").select("*").eq("boutique_id", boutiqueActive.id)
+      .then(({ data }) => setPromotions(data || [])).catch(() => {});
+  }, [boutiqueActive, vueGlobale]);
+  useEffect(() => { chargerPromos(); }, [chargerPromos]);
+
+  // Map produit(lower) -> % de remise (promo active la plus avantageuse)
+  const promosActives = useMemo(() => {
+    const t = todayISO();
+    const map = {};
+    promotions.forEach(p => {
+      if ((p.date_debut && p.date_debut > t) || (p.date_fin && p.date_fin < t)) return; // pas active
+      (p.produits || []).forEach(nom => {
+        const k = (nom || "").trim().toLowerCase();
+        if (!k) return;
+        map[k] = Math.max(map[k] || 0, p.pourcentage || 0);
+      });
+    });
+    return map;
+  }, [promotions]);
 
   // Liste unifiée des clients connus (crédits + ventes nominatives + carnet)
   const clientsConnus = useMemo(() => {
@@ -727,6 +753,8 @@ export default function App() {
     { id: "historique", label: "📊", title: t("historique") },
     { id: "stock", label: "📦", title: t("stock") },
     { id: "fournisseurs", label: "🚚", title: t("reassort"), badge: produits.filter(p => (p.stock || 0) <= (p.seuil_alerte ?? 2)).length },
+    { id: "bons_commande", label: "📥", title: "Bons de commande" },
+    { id: "promotions", label: "🎉", title: "Promotions" },
     { id: "credits", label: "📒", title: t("credits"), badge: credits.length },
     { id: "documents", label: "🧾", title: t("documents") },
     { id: "chat", label: "💬", title: "Messages & Clients", badge: credits.length },
@@ -891,7 +919,7 @@ export default function App() {
                 🌍 Vue globale active.<br />Choisis une boutique précise en haut pour enregistrer une opération.
               </div>
             ) : (
-              <SaisieForm produits={produits} onSubmit={enregistrerForm} chargement={chargement} estEntrepot={estEntrepot} fournisseurs={fournisseurs} clientsConnus={clientsConnus} />
+              <SaisieForm produits={produits} onSubmit={enregistrerForm} chargement={chargement} estEntrepot={estEntrepot} fournisseurs={fournisseurs} clientsConnus={clientsConnus} promos={promosActives} />
             )}
           </div>
         )}
@@ -982,6 +1010,14 @@ export default function App() {
           )
         )}
         {onglet === "stats" && estPatron && <Stats kpi={kpi} historique={historique} produits={produits} boutique={boutique} boutiqueActive={boutiqueActive} vueGlobale={vueGlobale} onRefresh={chargerDonnees} />}
+        {onglet === "bons_commande" && estPatron && (
+          vueGlobale ? <div style={{ padding: "0 12px" }}><div style={{ background: C.surface, borderRadius: 8, border: `1px solid ${C.border}`, padding: 20, textAlign: "center", color: C.muted, fontSize: 13 }}>🌍 Choisis une boutique précise pour gérer ses bons de commande.</div></div>
+            : <BonsCommande produits={produits} fournisseurs={fournisseurs} boutiqueId={boutiqueActive?.id} monNom={monNom} onRefresh={chargerDonnees} onStatut={setStatut} />
+        )}
+        {onglet === "promotions" && estPatron && (
+          vueGlobale ? <div style={{ padding: "0 12px" }}><div style={{ background: C.surface, borderRadius: 8, border: `1px solid ${C.border}`, padding: 20, textAlign: "center", color: C.muted, fontSize: 13 }}>🌍 Choisis une boutique précise pour gérer ses promotions.</div></div>
+            : <Promotions produits={produits} boutiqueId={boutiqueActive?.id} monNom={monNom} onStatut={setStatut} onRefresh={chargerPromos} />
+        )}
         {onglet === "journal" && estPatron && <Journal boutiqueId={vueGlobale ? null : boutiqueActive?.id} />}
         {onglet === "admin" && estAdmin && <Admin onStatut={setStatut} />}
        </Suspense>
