@@ -3,6 +3,7 @@ import { C } from "../theme";
 import { t } from "../i18n";
 import { supabase } from "../supabase";
 import { demarrerEnregistrement, arreterEnregistrement } from "../recorder";
+import { msgErreur } from "../erreurs";
 
 // Chat d'équipe : canal groupe + discussions privées (DM), par boutique
 export default function Chat({ boutiqueActive, userId, monNom, onStatut }) {
@@ -69,7 +70,7 @@ export default function Chat({ boutiqueActive, userId, monNom, onStatut }) {
       boutique_id: boutiqueActive.id, expediteur_id: userId, expediteur_nom: monNom, texte: tx,
       destinataire_id: canal === "groupe" ? null : canal,
     });
-    if (error) { onStatut && onStatut("❌ " + error.message); setTexte(tx); return; }
+    if (error) { onStatut && onStatut(msgErreur(error)); setTexte(tx); return; }
     charger();
   };
 
@@ -89,7 +90,7 @@ export default function Chat({ boutiqueActive, userId, monNom, onStatut }) {
       });
       if (error) throw error;
       charger();
-    } catch (e) { onStatut && onStatut("❌ Envoi média : " + (e.message || e)); }
+    } catch (e) { onStatut && onStatut(msgErreur(e, "L'envoi du média")); }
     setEnvoiMedia(false);
   };
 

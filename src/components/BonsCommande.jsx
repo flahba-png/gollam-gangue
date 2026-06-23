@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { C, fmt, today, todayISO } from "../theme";
 import { supabase } from "../supabase";
 import ProduitSelect from "./ProduitSelect";
+import { msgErreur } from "../erreurs";
 
 // Bons de commande d'achat : en-tête (fournisseur, prévu le) + lignes (article, qté, prix),
 // avec réception (totale ou partielle) qui ajoute au stock.
@@ -58,7 +59,7 @@ export default function BonsCommande({ produits, fournisseurs = [], boutiqueId, 
       date: todayISO(), prevu_le: prevuLe, statut: "en_attente", montant: totalForm, lignes, cree_par: monNom,
     });
     setEnCours(false);
-    if (error) { onStatut && onStatut("❌ " + error.message); return; }
+    if (error) { onStatut && onStatut(msgErreur(error)); return; }
     setCreation(false); setLignes([]); setFournisseurId(""); setPrevuLe(todayISO());
     onStatut && onStatut("✅ Bon de commande créé.");
     charger();

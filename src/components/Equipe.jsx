@@ -3,6 +3,7 @@ import { C, fmt, MODES_PAIEMENT, appeler, envoyerWhatsApp } from "../theme";
 import { t } from "../i18n";
 import { supabase } from "../supabase";
 import { CATEGORIES_PERMS, PERMS_VENDEUR, PERMS_GERANT } from "../permissions";
+import { msgErreur } from "../erreurs";
 
 // Gestion des employés d'une boutique + caisse par vendeur
 export default function Equipe({ boutiqueActive, proprietaireId, historique, onStatut }) {
@@ -43,7 +44,7 @@ export default function Equipe({ boutiqueActive, proprietaireId, historique, onS
       permissions: perms,
     });
     setEnCours(false);
-    if (error) { onStatut("❌ " + error.message); return; }
+    if (error) { onStatut(msgErreur(error)); return; }
     setEmail(""); setNom(""); setTel(""); setRole("vendeur"); setPerms({ ...PERMS_VENDEUR }); setAccesOuvert(false);
     onStatut(`✅ ${nom.trim()} ajouté. Il doit créer un compte employé avec cet email pour accéder.`);
     charger();

@@ -3,6 +3,7 @@ import { C, DEVISES } from "../theme";
 import { supabase } from "../supabase";
 import { LANGUES_DISPO } from "../i18n";
 import BoutiqueSwitcher from "./BoutiqueSwitcher";
+import { msgErreur } from "../erreurs";
 
 // Écran "Mon compte" : boutiques, email, changer mot de passe, déconnexion
 export default function Compte({ email, onClose, onLogout, onStatut, onExport, onRestaurer, theme = "sombre", onTheme, langue = "fr", onLangue,
@@ -27,7 +28,7 @@ export default function Compte({ email, onClose, onLogout, onStatut, onExport, o
         const dataUrl = cv.toDataURL("image/png");
         const { error } = await supabase.from("boutiques").update({ logo: dataUrl }).eq("id", boutiqueActive.id);
         setLogoEnCours(false);
-        if (error) { onStatut("❌ " + error.message); return; }
+        if (error) { onStatut(msgErreur(error)); return; }
         onBoutiqueUpdated && onBoutiqueUpdated({ ...boutiqueActive, logo: dataUrl });
         onStatut("✅ Logo de la boutique mis à jour.");
       };
@@ -51,7 +52,7 @@ export default function Compte({ email, onClose, onLogout, onStatut, onExport, o
     setEnCours(true);
     const { error } = await supabase.auth.updateUser({ password: nouveau });
     setEnCours(false);
-    if (error) { onStatut("❌ " + error.message); return; }
+    if (error) { onStatut(msgErreur(error)); return; }
     setNouveau("");
     onStatut("✅ Mot de passe modifié.");
     onClose();

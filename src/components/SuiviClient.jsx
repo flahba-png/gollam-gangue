@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect, useCallback, useRef } from "react"
 import { C, fmt, appeler, heure, todayISO } from "../theme";
 import { supabase } from "../supabase";
 import { relancerWhatsApp } from "../relance";
+import { msgErreur } from "../erreurs";
 
 // Suivi Client : ergonomie type messagerie (liste de discussions + fil par client).
 // Le fil mélange : transactions/reçus (historique), alerte "reste à payer" (crédits)
@@ -47,7 +48,7 @@ export default function SuiviClient({ credits, historique, boutiqueId, boutique,
     const nom = nvNom.trim();
     if (!nom || !boutiqueId) { onStatut && onStatut("⚠️ Donne au moins un nom."); return; }
     const { error } = await supabase.from("clients").insert({ boutique_id: boutiqueId, nom, phone: nvPhone.trim() || null });
-    if (error) { onStatut && onStatut("❌ " + error.message); return; }
+    if (error) { onStatut && onStatut(msgErreur(error)); return; }
     setNvNom(""); setNvPhone(""); setAjoutOuvert(false);
     chargerClients();
     onStatut && onStatut(`✅ Client « ${nom} » ajouté.`);
@@ -184,7 +185,7 @@ export default function SuiviClient({ credits, historique, boutiqueId, boutique,
     if (!tx || !clientSel || !boutiqueId) return;
     setTexte("");
     const { error } = await supabase.from("notes_client").insert({ boutique_id: boutiqueId, client: clientSel.nom, auteur: monNom, texte: tx });
-    if (error) { onStatut && onStatut("❌ " + error.message); setTexte(tx); return; }
+    if (error) { onStatut && onStatut(msgErreur(error)); setTexte(tx); return; }
     chargerNotes();
   };
 

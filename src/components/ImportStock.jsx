@@ -2,6 +2,7 @@ import React, { useState, useMemo } from "react";
 import * as XLSX from "xlsx";
 import { C, fmt } from "../theme";
 import { supabase } from "../supabase";
+import { msgErreur } from "../erreurs";
 
 // Import de stock en masse depuis un fichier Excel (.xlsx/.xls) ou CSV.
 // Étapes : 1) fichier → 2) mappage colonnes → 3) aperçu + doublons → 4) import.
@@ -133,7 +134,7 @@ export default function ImportStock({ produits, boutiqueId, onRefresh, onStatut,
       onClose();
     } catch (e) {
       setEnCours(false);
-      setErreur("Erreur pendant l'import : " + (e.message || e));
+      setErreur(msgErreur(e, "L'import"));
     }
   };
 

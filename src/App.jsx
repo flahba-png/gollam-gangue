@@ -33,6 +33,7 @@ import { ADMIN_EMAIL, DUREE_ESSAI_JOURS, ADMIN_WHATSAPP, PRIX_ABONNEMENT } from 
 import { imprimerFacture, envoyerRecuWhatsApp } from "./receipt";
 import { lireOutbox, ajouterOutbox, retirerOutbox, tailleOutbox } from "./outbox";
 import { sauverCache, lireCache, ageCache } from "./cache";
+import { msgErreur } from "./erreurs";
 
 export default function App() {
   const [session, setSession] = useState(null);
@@ -187,7 +188,7 @@ export default function App() {
       await chargerDonnees();
       setStatut(`✅ Restauration terminée : ${total} élément(s) réintégré(s) (doublons ignorés).`);
     } catch (e) {
-      setStatut("❌ Échec de la restauration : " + (e.message || e));
+      setStatut(msgErreur(e, "La restauration"));
     }
   };
 
@@ -229,7 +230,7 @@ export default function App() {
   const definirNouveauMdp = async () => {
     if ((nouveauMdp || "").length < 6) { setStatut("⚠️ Mot de passe trop court (min 6)."); return; }
     const { error } = await supabase.auth.updateUser({ password: nouveauMdp });
-    if (error) { setStatut("❌ " + error.message); return; }
+    if (error) { setStatut(msgErreur(error)); return; }
     setRecovery(false); setNouveauMdp("");
     setStatut("✅ Mot de passe modifié. Tu es connecté.");
   };

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { C, todayISO } from "../theme";
 import { supabase } from "../supabase";
 import ProduitSelect from "./ProduitSelect";
+import { msgErreur } from "../erreurs";
 
 // Campagnes de promotion : % de remise sur une sélection d'articles, sur une période.
 // Le prix remisé s'applique automatiquement en vente (voir SaisieForm).
@@ -42,7 +43,7 @@ export default function Promotions({ produits, boutiqueId, monNom, onStatut, onR
       boutique_id: boutiqueId, date_debut: debut, date_fin: fin, pourcentage: pourcent, notes: notes.trim() || null, produits: arts, cree_par: monNom,
     });
     setEnCours(false);
-    if (error) { onStatut && onStatut("❌ " + error.message); return; }
+    if (error) { onStatut && onStatut(msgErreur(error)); return; }
     setCreation(false); setArts([]); setPct("10"); setNotes("");
     onStatut && onStatut("✅ Promotion créée.");
     charger(); onRefresh && onRefresh();
