@@ -9,7 +9,11 @@ import { msgErreur } from "../erreurs";
 const CHAMPS = [
   { id: "nom", label: "Nom du produit", requis: true, mots: ["nom", "designation", "désignation", "produit", "article", "libelle", "libellé"] },
   { id: "prix_achat", label: "Prix d'achat", num: true, mots: ["achat", "cout", "coût", "revient"] },
-  { id: "prix_vente", label: "Prix de vente", num: true, mots: ["vente", "prix", "pu", "tarif"] },
+  { id: "prix_vente", label: "Prix de vente (détail)", num: true, mots: ["vente", "detail", "détail", "prix", "pu", "tarif"] },
+  { id: "prix_demi_gros", label: "Prix demi-gros", num: true, mots: ["demi-gros", "demigros", "demi gros", "demi"] },
+  { id: "prix_gros", label: "Prix gros", num: true, mots: ["prix gros", "gros"] },
+  { id: "seuil_demi_gros", label: "Seuil demi-gros (qté)", num: true, mots: ["seuil demi", "seuildemi", "min demi", "qte demi"] },
+  { id: "seuil_gros", label: "Seuil gros (qté)", num: true, mots: ["seuil gros", "seuilgros", "min gros", "qte gros"] },
   { id: "stock", label: "Quantité / Stock", num: true, mots: ["stock", "quantite", "quantité", "qte", "qté", "dispo"] },
   { id: "categorie", label: "Catégorie", mots: ["categorie", "catégorie", "famille", "rayon", "type"] },
   { id: "reference_oem", label: "Référence (OEM)", mots: ["ref", "référence", "reference", "oem"] },
@@ -51,8 +55,9 @@ export default function ImportStock({ produits, boutiqueId, onRefresh, onStatut,
       // Auto-mappage par nom de colonne
       const auto = {};
       CHAMPS.forEach(ch => {
-        const idx = head.findIndex(h => ch.mots.some(m => norm(h).includes(m)));
-        if (idx >= 0 && !Object.values(auto).includes(idx)) auto[ch.id] = idx;
+        // Première colonne ENCORE LIBRE qui correspond (évite que "demi-gros" vole la colonne "gros")
+        const idx = head.findIndex((h, i) => !Object.values(auto).includes(i) && ch.mots.some(m => norm(h).includes(m)));
+        if (idx >= 0) auto[ch.id] = idx;
       });
       setMapping(auto);
     } catch (e) {
@@ -71,6 +76,10 @@ export default function ImportStock({ produits, boutiqueId, onRefresh, onStatut,
         nom,
         prix_achat: mapping.prix_achat != null ? toNum(r[mapping.prix_achat]) : 0,
         prix_vente: mapping.prix_vente != null ? toNum(r[mapping.prix_vente]) : 0,
+        prix_demi_gros: mapping.prix_demi_gros != null ? toNum(r[mapping.prix_demi_gros]) : 0,
+        prix_gros: mapping.prix_gros != null ? toNum(r[mapping.prix_gros]) : 0,
+        seuil_demi_gros: mapping.seuil_demi_gros != null ? toNum(r[mapping.seuil_demi_gros]) : 0,
+        seuil_gros: mapping.seuil_gros != null ? toNum(r[mapping.seuil_gros]) : 0,
         stock: mapping.stock != null ? toNum(r[mapping.stock]) : 0,
         categorie: mapping.categorie != null ? String(r[mapping.categorie] ?? "").trim() || null : null,
         reference_oem: mapping.reference_oem != null ? String(r[mapping.reference_oem] ?? "").trim() || null : null,
@@ -83,6 +92,10 @@ export default function ImportStock({ produits, boutiqueId, onRefresh, onStatut,
         ex.stock += obj.stock;
         if (!ex.prix_achat) ex.prix_achat = obj.prix_achat;
         if (!ex.prix_vente) ex.prix_vente = obj.prix_vente;
+        if (!ex.prix_demi_gros) ex.prix_demi_gros = obj.prix_demi_gros;
+        if (!ex.prix_gros) ex.prix_gros = obj.prix_gros;
+        if (!ex.seuil_demi_gros) ex.seuil_demi_gros = obj.seuil_demi_gros;
+        if (!ex.seuil_gros) ex.seuil_gros = obj.seuil_gros;
         ex.categorie = ex.categorie || obj.categorie;
         ex.reference_oem = ex.reference_oem || obj.reference_oem;
         ex.code_barre = ex.code_barre || obj.code_barre;
@@ -104,7 +117,7 @@ export default function ImportStock({ produits, boutiqueId, onRefresh, onStatut,
     try {
       // 1. Nouveaux produits : insertion en lot
       const nouveaux = prepares.filter(p => !p.existant)
-        .map(p => ({ boutique_id: boutiqueId, nom: p.nom, prix_achat: p.prix_achat, prix_vente: p.prix_vente, stock: p.stock, categorie: p.categorie, reference_oem: p.reference_oem, code_barre: p.code_barre }));
+        .map(p => ({ boutique_id: boutiqueId, nom: p.nom, prix_achat: p.prix_achat, prix_vente: p.prix_vente, prix_demi_gros: p.prix_demi_gros, prix_gros: p.prix_gros, seuil_demi_gros: p.seuil_demi_gros, seuil_gros: p.seuil_gros, stock: p.stock, categorie: p.categorie, reference_oem: p.reference_oem, code_barre: p.code_barre }));
       for (let i = 0; i < nouveaux.length; i += 200) {
         const lot = nouveaux.slice(i, i + 200);
         const { error } = await supabase.from("produits").insert(lot);
@@ -120,6 +133,10 @@ export default function ImportStock({ produits, boutiqueId, onRefresh, onStatut,
           const patch = { stock: p.stock };
           if (p.prix_achat) patch.prix_achat = p.prix_achat;
           if (p.prix_vente) patch.prix_vente = p.prix_vente;
+          if (p.prix_demi_gros) patch.prix_demi_gros = p.prix_demi_gros;
+          if (p.prix_gros) patch.prix_gros = p.prix_gros;
+          if (p.seuil_demi_gros) patch.seuil_demi_gros = p.seuil_demi_gros;
+          if (p.seuil_gros) patch.seuil_gros = p.seuil_gros;
           if (p.categorie) patch.categorie = p.categorie;
           if (p.reference_oem) patch.reference_oem = p.reference_oem;
           if (p.code_barre) patch.code_barre = p.code_barre;

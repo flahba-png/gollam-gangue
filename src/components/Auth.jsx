@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { supabase } from "../supabase";
 import { C } from "../theme";
 import { t } from "../i18n";
+import { msgErreur } from "../erreurs";
 
 export default function Auth() {
   const [mode, setMode] = useState("login"); // login | register | reset
@@ -24,7 +25,7 @@ export default function Auth() {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: window.location.origin,
       });
-      setMessage(error ? "❌ " + error.message : "✅ Email de réinitialisation envoyé ! Vérifie ta boîte mail (et les spams).");
+      setMessage(error ? "❌ " + msgErreur(error).replace(/^❌ /, "") : "✅ Email de réinitialisation envoyé ! Vérifie ta boîte mail (et les spams).");
       setChargement(false);
       return;
     }
@@ -39,7 +40,7 @@ export default function Auth() {
       });
 
       if (error) {
-        setMessage("❌ " + error.message);
+        setMessage("❌ " + msgErreur(error).replace(/^❌ /, ""));
       } else if (compte === "employe") {
         // L'employé crée juste son compte. Il sera rattaché à une boutique
         // par son patron (qui l'ajoute par email), puis lié à la connexion.

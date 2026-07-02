@@ -3,6 +3,7 @@ import { C, fmt, MODES_PAIEMENT } from "../theme";
 import { t } from "../i18n";
 import Scanner from "./Scanner";
 import ProduitSelect from "./ProduitSelect";
+import { TARIFS, labelPalier, aDesPaliers, palierAuto, prixDuPalier } from "../tarifs";
 
 // Formulaire de saisie : panier multi-articles pour vente/crédit, simple pour stock/dépense
 export default function SaisieForm({ produits, onSubmit, chargement, estEntrepot = false, fournisseurs = [], clientsConnus = [], promos = {} }) {
@@ -42,31 +43,46 @@ export default function SaisieForm({ produits, onSubmit, chargement, estEntrepot
     setModePaiement("especes"); setMixte(false); setRepart({}); setUniteSaisie("piece"); setFournisseurId("");
   };
 
+  // Recalcule le prix unitaire d'une ligne selon son mode de tarif et sa quantité.
+  // mode : "auto" (palier selon quantité) | "detail"/"demi_gros"/"gros" (forcé) | "manuel" (prix figé saisi à la main)
+  const recalcLigne = (l) => {
+    if (l.mode === "manuel") return l; // prix saisi à la main, on n'y touche pas
+    const ref = { prix_vente: l.tarifs.detail, prix_demi_gros: l.tarifs.demiGros, prix_gros: l.tarifs.gros, seuil_demi_gros: l.tarifs.seuilDemiGros, seuil_gros: l.tarifs.seuilGros };
+    const palier = l.mode === "auto" ? palierAuto(ref, l.qte) : l.mode;
+    let pu = prixDuPalier(ref, palier);
+    if (l.promo > 0) pu = Math.round(pu * (1 - l.promo / 100)); // promo appliquée par-dessus le palier
+    return { ...l, palier, pu };
+  };
+
   // Ajoute la ligne courante au panier
-  const ajouterAuPanier = (prod, qte = 1, pu = null) => {
+  const ajouterAuPanier = (prod, qte = 1) => {
     const p = prod || produitSel;
     if (!p) { setScanMsg("⚠️ Choisis un produit."); return; }
     const q = parseInt(qte) || 1;
-    let prix = pu != null ? pu : (parseInt(prixUnit) || p.prix_vente || 0);
-    // Promotion active sur cet article → prix remisé automatiquement
     const pct = promos[(p.nom || "").trim().toLowerCase()] || 0;
-    if (pct > 0) prix = Math.round(prix * (1 - pct / 100));
     setPanier(prev => {
-      // Fusionne si déjà présent
+      // Fusionne si déjà présent (et recalcule le palier sur la nouvelle quantité)
       const i = prev.findIndex(l => l.produitId === p.id);
       if (i >= 0) {
         const copie = [...prev];
-        copie[i] = { ...copie[i], qte: copie[i].qte + q };
+        copie[i] = recalcLigne({ ...copie[i], qte: copie[i].qte + q });
         return copie;
       }
-      return [...prev, { produitId: p.id, nom: p.nom, qte: q, pu: prix, promo: pct, stock: p.stock || 0 }];
+      const ligne = {
+        produitId: p.id, nom: p.nom, qte: q, promo: pct, stock: p.stock || 0,
+        mode: "auto", palier: "detail", pu: 0,
+        aPaliers: aDesPaliers(p),
+        tarifs: { detail: p.prix_vente || 0, demiGros: p.prix_demi_gros || 0, gros: p.prix_gros || 0, seuilDemiGros: p.seuil_demi_gros || 0, seuilGros: p.seuil_gros || 0 },
+      };
+      return [...prev, recalcLigne(ligne)];
     });
     setProduitId(""); setQuantite("1"); setPrixUnit("");
   };
 
   const retirerLigne = (id) => setPanier(prev => prev.filter(l => l.produitId !== id));
-  const majQte = (id, q) => setPanier(prev => prev.map(l => l.produitId === id ? { ...l, qte: Math.max(1, parseInt(q) || 1) } : l));
-  const majPu = (id, v) => setPanier(prev => prev.map(l => l.produitId === id ? { ...l, pu: Math.max(0, parseInt(v) || 0) } : l));
+  const majQte = (id, q) => setPanier(prev => prev.map(l => l.produitId === id ? recalcLigne({ ...l, qte: Math.max(1, parseInt(q) || 1) }) : l));
+  const majPu = (id, v) => setPanier(prev => prev.map(l => l.produitId === id ? { ...l, pu: Math.max(0, parseInt(v) || 0), mode: "manuel" } : l));
+  const setModeLigne = (id, mode) => setPanier(prev => prev.map(l => l.produitId === id ? recalcLigne({ ...l, mode }) : l));
 
   const totalPanier = panier.reduce((s, l) => s + l.qte * l.pu, 0);
   const totalNet = totalPanier;
@@ -80,7 +96,7 @@ export default function SaisieForm({ produits, onSubmit, chargement, estEntrepot
     setScanOuvert(false);
     const p = produits.find(x => x.code_barre && x.code_barre === code);
     if (!p) { setScanMsg(`❌ Code ${code} non reconnu. Associe-le dans l'onglet Stock.`); setTimeout(() => setScanMsg(""), 4000); return; }
-    if (estPanier) { ajouterAuPanier(p, 1, p.prix_vente || 0); setScanMsg(`✅ ${p.nom} ajouté au panier`); }
+    if (estPanier) { ajouterAuPanier(p, 1); setScanMsg(`✅ ${p.nom} ajouté au panier`); }
     else { setProduitId(String(p.id)); setScanMsg(`✅ ${p.nom} sélectionné`); }
     setTimeout(() => setScanMsg(""), 3000);
   };
@@ -241,7 +257,7 @@ export default function SaisieForm({ produits, onSubmit, chargement, estEntrepot
                 <ProduitSelect
                   produits={produits} value=""
                   placeholder="Rechercher un produit à ajouter…"
-                  onSelect={p => { if (p) { ajouterAuPanier(p, 1, p.prix_vente || 0); setScanMsg(`✅ ${p.nom} ajouté`); setTimeout(() => setScanMsg(""), 1500); } }}
+                  onSelect={p => { if (p) { ajouterAuPanier(p, 1); setScanMsg(`✅ ${p.nom} ajouté`); setTimeout(() => setScanMsg(""), 1500); } }}
                 />
               </div>
               <button type="button" onClick={() => setScanOuvert(true)} title="Scanner" style={scanBtn}>📷</button>
@@ -263,19 +279,36 @@ export default function SaisieForm({ produits, onSubmit, chargement, estEntrepot
               </div>
             )}
             {panier.map(l => (
-              <div key={l.produitId} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 0", borderBottom: `1px solid ${C.border}` }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ color: C.text, fontSize: 13, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                    {l.nom}
-                    {l.promo > 0 && <span style={{ marginLeft: 6, fontSize: 9, fontWeight: "bold", color: C.red, background: C.red + "18", borderRadius: 8, padding: "1px 6px" }}>🎉 −{l.promo}%</span>}
+              <div key={l.produitId} style={{ padding: "6px 0", borderBottom: `1px solid ${C.border}` }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ color: C.text, fontSize: 13, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      {l.nom}
+                      {l.promo > 0 && <span style={{ marginLeft: 6, fontSize: 9, fontWeight: "bold", color: C.red, background: C.red + "18", borderRadius: 8, padding: "1px 6px" }}>🎉 −{l.promo}%</span>}
+                    </div>
+                    <div style={{ color: C.muted, fontSize: 10 }}>{fmt(l.pu)} × {l.qte} = <b style={{ color: C.green }}>{fmt(l.pu * l.qte)}</b></div>
                   </div>
-                  <div style={{ color: C.muted, fontSize: 10 }}>{fmt(l.pu)} × {l.qte} = <b style={{ color: C.green }}>{fmt(l.pu * l.qte)}</b></div>
+                  <input type="number" min="0" inputMode="numeric" value={l.pu} onChange={e => majPu(l.produitId, e.target.value)} title="Prix unitaire (modifiable)"
+                    style={{ width: 82, padding: "5px", background: C.surface, border: `1px solid ${C.border}`, borderRadius: 6, color: C.text, fontSize: 12, textAlign: "right" }} />
+                  <input type="number" min="1" value={l.qte} onChange={e => majQte(l.produitId, e.target.value)} title="Quantité"
+                    style={{ width: 46, padding: "5px", background: C.surface, border: `1px solid ${C.border}`, borderRadius: 6, color: C.text, fontSize: 12, textAlign: "center" }} />
+                  <button type="button" onClick={() => retirerLigne(l.produitId)} style={{ background: C.red + "22", color: C.red, border: `1px solid ${C.red}44`, padding: "4px 6px", borderRadius: 6, fontSize: 11, cursor: "pointer" }}>✕</button>
                 </div>
-                <input type="number" min="0" inputMode="numeric" value={l.pu} onChange={e => majPu(l.produitId, e.target.value)} title="Prix unitaire (modifiable)"
-                  style={{ width: 82, padding: "5px", background: C.surface, border: `1px solid ${C.border}`, borderRadius: 6, color: C.text, fontSize: 12, textAlign: "right" }} />
-                <input type="number" min="1" value={l.qte} onChange={e => majQte(l.produitId, e.target.value)} title="Quantité"
-                  style={{ width: 46, padding: "5px", background: C.surface, border: `1px solid ${C.border}`, borderRadius: 6, color: C.text, fontSize: 12, textAlign: "center" }} />
-                <button type="button" onClick={() => retirerLigne(l.produitId)} style={{ background: C.red + "22", color: C.red, border: `1px solid ${C.red}44`, padding: "4px 6px", borderRadius: 6, fontSize: 11, cursor: "pointer" }}>✕</button>
+                {/* Sélecteur de tarif (uniquement si le produit a des prix de gros) */}
+                {l.aPaliers && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6 }}>
+                    <span style={{ fontSize: 9, color: C.muted, fontWeight: "bold", letterSpacing: 0.3 }}>TARIF</span>
+                    <select value={l.mode} onChange={e => setModeLigne(l.produitId, e.target.value)}
+                      style={{ padding: "4px 6px", background: C.surface, border: `1px solid ${C.border}`, borderRadius: 6, color: C.text, fontSize: 11 }}>
+                      <option value="auto">Auto (quantité)</option>
+                      {TARIFS.map(tr => <option key={tr.id} value={tr.id}>{tr.label}</option>)}
+                      {l.mode === "manuel" && <option value="manuel">Manuel</option>}
+                    </select>
+                    <span style={{ fontSize: 9, fontWeight: "bold", color: l.mode === "manuel" ? C.yellow : C.blue, background: (l.mode === "manuel" ? C.yellow : C.blue) + "18", borderRadius: 8, padding: "1px 6px" }}>
+                      {l.mode === "manuel" ? "✍️ prix manuel" : `→ ${labelPalier(l.palier)}`}
+                    </span>
+                  </div>
+                )}
               </div>
             ))}
             {panier.length > 0 && (

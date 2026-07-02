@@ -10,5 +10,18 @@ export const msgErreur = (e, contexte = "") => {
     return "Cet élément existe déjà.";
   if (m.includes("row-level security") || m.includes("policy") || m.includes("permission") || m.includes("not authorized"))
     return "Action non autorisée pour ce compte.";
+  // --- Authentification ---
+  if (m.includes("invalid login") || m.includes("invalid credentials"))
+    return "Email ou mot de passe incorrect.";
+  if (m.includes("already registered") || m.includes("already exists") || m.includes("user already"))
+    return "Un compte existe déjà avec cet email.";
+  if (m.includes("password should be") || m.includes("password is too") || (m.includes("password") && m.includes("characters")))
+    return "Mot de passe trop court (6 caractères minimum).";
+  if (m.includes("email not confirmed"))
+    return "Email pas encore confirmé. Vérifie ta boîte mail (et les spams).";
+  if (m.includes("invalid email") || m.includes("invalid format") || m.includes("unable to validate email"))
+    return "Adresse email invalide.";
+  if (m.includes("for security purposes") || m.includes("rate limit") || m.includes("too many"))
+    return "Trop de tentatives. Patiente un instant avant de réessayer.";
   return contexte ? `❌ ${contexte} a échoué. Réessaie.` : "❌ Une erreur est survenue. Réessaie.";
 };

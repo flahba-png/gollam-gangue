@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { C } from "../theme";
 import { supabase } from "../supabase";
+import { msgErreur } from "../erreurs";
 
 // Surveillance vidéo : liste de caméras (par boutique) + lecteur HLS/M3U8.
 // hls.js est chargé dynamiquement (uniquement à l'ouverture) pour ne pas alourdir l'app.
@@ -57,7 +58,7 @@ export default function Surveillance({ boutiqueActive, estPatron = false, onRefr
     const propres = liste.map(c => ({ nom: (c.nom || "").trim(), url: (c.url || "").trim() })).filter(c => c.nom && c.url);
     const { error } = await supabase.from("boutiques").update({ cameras: propres }).eq("id", boutiqueActive.id);
     setSauve(false);
-    if (error) { setErr("Erreur d'enregistrement : " + error.message); return; }
+    if (error) { setErr(msgErreur(error, "L'enregistrement")); return; }
     onRefresh && onRefresh();
     setActive(0);
     setGestion(false);

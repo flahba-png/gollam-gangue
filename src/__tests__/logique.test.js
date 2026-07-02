@@ -2,6 +2,9 @@ import { describe, it, expect } from "vitest";
 import { permsDe, PERMS_VENDEUR, PERMS_GERANT } from "../permissions";
 import { ageEnJours, nb, fmt } from "../theme";
 import { ventesParProduit, stocksDormants, caMensuel } from "../analytics";
+import { msgErreur } from "../erreurs";
+import { estIndisponible, estLocal, fusionnerLocal, tailleFilet, synchroniserFilets } from "../fallback";
+import { palierAuto, prixDuPalier, prixApplique, aDesPaliers } from "../tarifs";
 
 describe("permissions (permsDe)", () => {
   it("le propriétaire a tous les droits", () => {
@@ -93,5 +96,83 @@ describe("analytics — stocks dormants", () => {
 describe("analytics — CA mensuel", () => {
   it("renvoie n mois", () => {
     expect(caMensuel([], 6)).toHaveLength(6);
+  });
+});
+
+describe("résilience — filet de sécurité (fallback)", () => {
+  it("détecte une table absente (le cas qui plantait les clients)", () => {
+    expect(estIndisponible({ message: "Could not find the table 'public.clients' in the schema cache" })).toBe(true);
+    expect(estIndisponible({ message: 'relation "clients" does not exist' })).toBe(true);
+  });
+  it("détecte une coupure réseau", () => {
+    expect(estIndisponible({ message: "Failed to fetch" })).toBe(true);
+    expect(estIndisponible(new Error("NetworkError when attempting to fetch resource"))).toBe(true);
+  });
+  it("ne se déclenche pas sur une vraie erreur métier", () => {
+    expect(estIndisponible({ message: "duplicate key value violates unique constraint" })).toBe(false);
+    expect(estIndisponible({ message: "new row violates row-level security policy" })).toBe(false);
+    expect(estIndisponible(null)).toBe(false);
+  });
+  it("reconnaît un id local vs un id de base", () => {
+    expect(estLocal("local-123-ab")).toBe(true);
+    expect(estLocal(42)).toBe(false);
+    expect(estLocal(null)).toBe(false);
+  });
+  it("fusionne sans perdre les enregistrements de la base", () => {
+    const base = [{ id: 1 }, { id: 2 }];
+    expect(fusionnerLocal("cle_test_inexistante", base)).toEqual(base);
+  });
+  it("aucun élément à synchroniser sans boutique", () => {
+    expect(tailleFilet(null)).toBe(0);
+    expect(tailleFilet(undefined)).toBe(0);
+  });
+  it("la synchro ne tente rien sans boutique", async () => {
+    await expect(synchroniserFilets(null)).resolves.toBe(0);
+  });
+});
+
+describe("tarification à paliers (détail / demi-gros / gros)", () => {
+  const p = { prix_vente: 1000, prix_demi_gros: 900, prix_gros: 800, seuil_demi_gros: 3, seuil_gros: 12 };
+  it("applique le détail en dessous du premier seuil", () => {
+    expect(palierAuto(p, 1)).toBe("detail");
+    expect(palierAuto(p, 2)).toBe("detail");
+    expect(prixDuPalier(p, "detail")).toBe(1000);
+  });
+  it("bascule en demi-gros au seuil (3) puis en gros au carton (12)", () => {
+    expect(palierAuto(p, 3)).toBe("demi_gros");
+    expect(palierAuto(p, 11)).toBe("demi_gros");
+    expect(palierAuto(p, 12)).toBe("gros");
+    expect(prixDuPalier(p, "gros")).toBe(800);
+  });
+  it("ignore un palier dont le prix n'est pas défini", () => {
+    const sansGros = { prix_vente: 1000, prix_demi_gros: 900, seuil_demi_gros: 3, prix_gros: 0, seuil_gros: 0 };
+    expect(palierAuto(sansGros, 50)).toBe("demi_gros"); // pas de prix gros → reste en demi-gros
+    expect(prixDuPalier(sansGros, "gros")).toBe(1000);  // repli sur le détail
+  });
+  it("prixApplique respecte un palier forcé (profil acheteur)", () => {
+    expect(prixApplique(p, 1, "gros")).toEqual({ palier: "gros", pu: 800 });
+    expect(prixApplique(p, 1, "auto").palier).toBe("detail");
+  });
+  it("aDesPaliers détecte si un produit a des tarifs de gros", () => {
+    expect(aDesPaliers(p)).toBe(true);
+    expect(aDesPaliers({ prix_vente: 500 })).toBe(false);
+  });
+});
+
+describe("UX erreurs — message clair (msgErreur)", () => {
+  it("traduit une coupure réseau en message simple", () => {
+    expect(msgErreur({ message: "Failed to fetch" })).toContain("Connexion");
+  });
+  it("ajoute le contexte fourni sur une erreur inconnue", () => {
+    expect(msgErreur({ message: "boom" }, "L'import")).toContain("L'import");
+  });
+  it("traduit les erreurs d'authentification en français", () => {
+    expect(msgErreur({ message: "Invalid login credentials" })).toContain("incorrect");
+    expect(msgErreur({ message: "User already registered" })).toContain("existe déjà");
+    expect(msgErreur({ message: "Password should be at least 6 characters" })).toContain("court");
+  });
+  it("ne laisse jamais passer de texte technique anglais", () => {
+    const out = msgErreur({ message: "Could not find the table 'public.clients' in the schema cache" });
+    expect(out).not.toMatch(/schema cache|public\./);
   });
 });

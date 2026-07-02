@@ -3,6 +3,7 @@ import { C, fmt, today, todayISO } from "../theme";
 import { supabase } from "../supabase";
 import ProduitSelect from "./ProduitSelect";
 import { msgErreur } from "../erreurs";
+import { estIndisponible, estLocal, lireLocal, ajouterLocal, majLocal, fusionnerLocal } from "../fallback";
 
 // Bons de commande d'achat : en-tête (fournisseur, prévu le) + lignes (article, qté, prix),
 // avec réception (totale ou partielle) qui ajoute au stock.
@@ -28,10 +29,11 @@ export default function BonsCommande({ produits, fournisseurs = [], boutiqueId, 
 
   const charger = useCallback(async () => {
     if (!boutiqueId) { setBons([]); return; }
-    let q = supabase.from("bons_commande").select("*").eq("boutique_id", boutiqueId)
+    const cle = `bons_commande_${boutiqueId}`;
+    const { data, error } = await supabase.from("bons_commande").select("*").eq("boutique_id", boutiqueId)
       .gte("date", dDebut).lte("date", dFin).order("created_at", { ascending: false });
-    const { data } = await q;
-    setBons(data || []);
+    if (error) { setBons(estIndisponible(error) ? lireLocal(cle) : []); return; }
+    setBons(fusionnerLocal(cle, data));
   }, [boutiqueId, dDebut, dFin]);
   useEffect(() => { charger(); }, [charger]);
 
@@ -54,12 +56,15 @@ export default function BonsCommande({ produits, fournisseurs = [], boutiqueId, 
     if (lignes.length === 0) { onStatut && onStatut("⚠️ Ajoute au moins un article."); return; }
     setEnCours(true);
     const f = fournisseurs.find(x => String(x.id) === fournisseurId);
-    const { error } = await supabase.from("bons_commande").insert({
+    const row = {
       boutique_id: boutiqueId, fournisseur_id: fournisseurId || null, fournisseur_nom: f?.nom || "—",
       date: todayISO(), prevu_le: prevuLe, statut: "en_attente", montant: totalForm, lignes, cree_par: monNom,
-    });
+    };
+    const { error } = await supabase.from("bons_commande").insert(row);
     setEnCours(false);
-    if (error) { onStatut && onStatut(msgErreur(error)); return; }
+    if (error && !estIndisponible(error)) { onStatut && onStatut(msgErreur(error)); return; }
+    // Table absente ou hors-ligne : on garde le bon en local, il reste utilisable.
+    if (error) ajouterLocal(`bons_commande_${boutiqueId}`, row);
     setCreation(false); setLignes([]); setFournisseurId(""); setPrevuLe(todayISO());
     onStatut && onStatut("✅ Bon de commande créé.");
     charger();
@@ -86,7 +91,12 @@ export default function BonsCommande({ produits, fournisseurs = [], boutiqueId, 
     }
     const toutRecu = nouvellesLignes.every(l => (l.qte_recue || 0) >= (l.qte || 0));
     const partiel = nouvellesLignes.some(l => (l.qte_recue || 0) > 0);
-    await supabase.from("bons_commande").update({ lignes: nouvellesLignes, statut: toutRecu ? "recu" : partiel ? "recu_partiel" : "en_attente" }).eq("id", b.id);
+    const maj = { lignes: nouvellesLignes, statut: toutRecu ? "recu" : partiel ? "recu_partiel" : "en_attente" };
+    if (estLocal(b.id)) majLocal(`bons_commande_${boutiqueId}`, b.id, maj);
+    else {
+      const { error } = await supabase.from("bons_commande").update(maj).eq("id", b.id);
+      if (error && estIndisponible(error)) majLocal(`bons_commande_${boutiqueId}`, b.id, maj);
+    }
     setReceptionId(null); setRecQtes({});
     onStatut && onStatut("✅ Réception enregistrée, stock mis à jour.");
     onRefresh && onRefresh();

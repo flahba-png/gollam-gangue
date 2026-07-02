@@ -34,6 +34,7 @@ import { imprimerFacture, envoyerRecuWhatsApp } from "./receipt";
 import { lireOutbox, ajouterOutbox, retirerOutbox, tailleOutbox } from "./outbox";
 import { sauverCache, lireCache, ageCache } from "./cache";
 import { msgErreur } from "./erreurs";
+import { synchroniserFilets, tailleFilet } from "./fallback";
 
 export default function App() {
   const [session, setSession] = useState(null);
@@ -56,6 +57,7 @@ export default function App() {
   const [chargement, setChargement] = useState(false);
   const [enLigne, setEnLigne] = useState(navigator.onLine);
   const [enAttente, setEnAttente] = useState(tailleOutbox());
+  const [enAttenteFilet, setEnAttenteFilet] = useState(0); // clients/promos/bons gardés en local
   const [recovery, setRecovery] = useState(false); // l'utilisateur a cliqué un lien de réinitialisation
   const [nouveauMdp, setNouveauMdp] = useState("");
   const [voirMdp, setVoirMdp] = useState(false);
@@ -674,12 +676,17 @@ export default function App() {
       else echecs++;
     }
     setEnAttente(tailleOutbox());
+    // Remonte aussi en base les clients/promos/bons gardés en local (filet de sécurité)
+    const restantsFilet = await synchroniserFilets(boutiqueActive?.id);
+    setEnAttenteFilet(restantsFilet);
     await chargerDonnees();
     setStatut(echecs > 0 ? `⚠️ Synchro terminée, ${echecs} opération(s) en échec.` : "✅ Tout est synchronisé.");
-  }, [chargerDonnees]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [chargerDonnees, boutiqueActive]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Synchronise dès que le réseau revient (ou au démarrage si file non vide)
   useEffect(() => { if (enLigne) flushOutbox(); }, [enLigne, flushOutbox]);
+  // Tient à jour le compteur d'éléments locaux à synchroniser
+  useEffect(() => { setEnAttenteFilet(tailleFilet(boutiqueActive?.id)); }, [boutiqueActive]);
 
   const deconnecter = async () => {
     await supabase.auth.signOut();
@@ -726,7 +733,13 @@ export default function App() {
   // Abonnement : on bloque le propriétaire si son essai/abonnement est expiré
   const aboExpire = estProprio && abonnement && new Date(abonnement.date_fin) <= new Date();
   if (aboExpire) {
-    return <Paywall abonnement={abonnement} nomBoutique={boutiques[0]?.nom} email={session.user.email} onDeconnexion={deconnecter} />;
+    const statsPaywall = {
+      boutiques: boutiques.length,
+      produits: produits.length,
+      ventes: historique.filter(h => h.type === "vente").length,
+      ca: kpi.ca,
+    };
+    return <Paywall abonnement={abonnement} nomBoutique={boutiques[0]?.nom} email={session.user.email} stats={statsPaywall} onDeconnexion={deconnecter} />;
   }
 
   // Onboarding au tout premier lancement (propriétaire)
@@ -793,7 +806,7 @@ export default function App() {
   return (
     <div style={{ background: C.bg, color: C.text, minHeight: "100vh", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", maxWidth: 480, margin: "0 auto" }}>
 
-      <div style={{ background: "rgba(22,28,36,0.82)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", padding: "12px 16px", borderBottom: `1px solid ${C.border}`, position: "sticky", top: 0, zIndex: 100, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <div style={{ background: "rgba(22,28,36,0.82)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", padding: "12px 16px", paddingTop: "calc(12px + env(safe-area-inset-top))", borderBottom: `1px solid ${C.border}`, position: "sticky", top: 0, zIndex: 100, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div>
           <div style={{ fontSize: 15, fontWeight: "bold", color: C.green }}>Gollam</div>
           <div style={{ fontSize: 10, color: C.muted }}>Gestion Commerciale</div>
@@ -802,6 +815,11 @@ export default function App() {
           {enAttente > 0 && (
             <div style={{ background: C.yellow + "22", color: C.yellow, padding: "3px 8px", borderRadius: 10, fontSize: 10, fontWeight: "bold" }} title="Opérations en attente de synchronisation">
               ⏳ {enAttente}
+            </div>
+          )}
+          {enAttenteFilet > 0 && (
+            <div onClick={() => flushOutbox()} style={{ background: C.blue + "22", color: C.blue, padding: "3px 8px", borderRadius: 10, fontSize: 10, fontWeight: "bold", cursor: "pointer" }} title="Clients/promos/bons à synchroniser — clique pour réessayer">
+              ☁️ {enAttenteFilet}
             </div>
           )}
           {estProprio && abonnement?.plan === "essai" && joursRestants != null && (
@@ -864,18 +882,24 @@ export default function App() {
           onBoutiqueUpdated={(b) => { setBoutiques(prev => prev.map(x => x.id === b.id ? b : x)); setBoutiqueActive(prev => prev?.id === b.id ? b : prev); }} />
       )}
 
-      {/* RAPPEL FIN D'ESSAI (≤ 3 jours) */}
-      {estProprio && abonnement?.plan === "essai" && joursRestants != null && joursRestants <= 3 && (
-        <div style={{ background: C.red + "18", borderBottom: `1px solid ${C.red}44`, padding: "8px 12px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-          <span style={{ color: C.red, fontSize: 12, fontWeight: "bold" }}>
-            ⏳ Ton essai se termine dans {joursRestants} jour{joursRestants > 1 ? "s" : ""}
-          </span>
-          <button onClick={demanderAbonnement}
-            style={{ background: C.green, color: C.bg, border: "none", borderRadius: 8, padding: "5px 12px", fontSize: 12, fontWeight: "bold", cursor: "pointer", whiteSpace: "nowrap" }}>
-            S'abonner
-          </button>
-        </div>
-      )}
+      {/* RAPPEL FIN D'ESSAI — progressif : doux dès J-7, urgent à J-3 */}
+      {estProprio && abonnement?.plan === "essai" && joursRestants != null && joursRestants <= 7 && (() => {
+        const urgent = joursRestants <= 3;
+        const col = urgent ? C.red : C.yellow;
+        return (
+          <div style={{ background: col + "18", borderBottom: `1px solid ${col}44`, padding: "8px 12px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+            <span style={{ color: col, fontSize: 12, fontWeight: "bold" }}>
+              {urgent
+                ? `⏳ Ton essai se termine dans ${joursRestants} jour${joursRestants > 1 ? "s" : ""} !`
+                : `🎉 ${kpi.ca > 0 ? `Déjà ${fmt(kpi.ca)} de ventes — ` : ""}plus que ${joursRestants} jours d'essai`}
+            </span>
+            <button onClick={demanderAbonnement}
+              style={{ background: C.green, color: C.bg, border: "none", borderRadius: 8, padding: "5px 12px", fontSize: 12, fontWeight: "bold", cursor: "pointer", whiteSpace: "nowrap" }}>
+              S'abonner
+            </button>
+          </div>
+        );
+      })()}
 
       {!enLigne && (
         <div style={{ background: C.yellow + "22", color: C.yellow, borderBottom: `1px solid ${C.yellow}44`, padding: "6px 12px", fontSize: 11, textAlign: "center", fontWeight: "bold" }}>
@@ -1051,7 +1075,7 @@ export default function App() {
         </>
       )}
 
-      <div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 480, background: "rgba(22,28,36,0.9)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", borderTop: `1px solid ${C.border}`, display: "flex", boxSizing: "border-box", boxShadow: "0 -4px 24px rgba(0,0,0,0.3)", zIndex: 152 }}>
+      <div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 480, background: "rgba(22,28,36,0.9)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", borderTop: `1px solid ${C.border}`, display: "flex", boxSizing: "border-box", paddingBottom: "env(safe-area-inset-bottom)", boxShadow: "0 -4px 24px rgba(0,0,0,0.3)", zIndex: 152 }}>
         {primaires.map(tab => {
           const actif = onglet === tab.id;
           return (

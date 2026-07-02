@@ -1,5 +1,6 @@
 import React from "react";
 import { logErreur } from "./monitoring";
+import { msgErreur } from "./erreurs";
 
 // Filet de sécurité : capture toute erreur de rendu et affiche un message
 // lisible au lieu d'un écran noir. Permet aussi de vider le cache d'un clic.
@@ -47,7 +48,7 @@ export default class ErrorBoundary extends React.Component {
               🔄 Recharger l'application
             </button>
             <div style={{ fontSize: 11, color: "#8A97A6", background: "#161C24", border: "1px solid #2A3441", borderRadius: 8, padding: 10, textAlign: "left", wordBreak: "break-word" }}>
-              {String(this.state.erreur?.message || this.state.erreur)}
+              {msgErreur(this.state.erreur)}
             </div>
           </div>
         </div>

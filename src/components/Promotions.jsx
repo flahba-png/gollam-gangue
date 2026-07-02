@@ -3,6 +3,7 @@ import { C, todayISO } from "../theme";
 import { supabase } from "../supabase";
 import ProduitSelect from "./ProduitSelect";
 import { msgErreur } from "../erreurs";
+import { estIndisponible, estLocal, lireLocal, ajouterLocal, supprimerLocal, fusionnerLocal } from "../fallback";
 
 // Campagnes de promotion : % de remise sur une sélection d'articles, sur une période.
 // Le prix remisé s'applique automatiquement en vente (voir SaisieForm).
@@ -25,8 +26,10 @@ export default function Promotions({ produits, boutiqueId, monNom, onStatut, onR
 
   const charger = useCallback(async () => {
     if (!boutiqueId) { setPromos([]); return; }
-    const { data } = await supabase.from("promotions").select("*").eq("boutique_id", boutiqueId).order("created_at", { ascending: false });
-    setPromos(data || []);
+    const cle = `promotions_${boutiqueId}`;
+    const { data, error } = await supabase.from("promotions").select("*").eq("boutique_id", boutiqueId).order("created_at", { ascending: false });
+    if (error) { setPromos(estIndisponible(error) ? lireLocal(cle) : []); return; }
+    setPromos(fusionnerLocal(cle, data));
   }, [boutiqueId]);
   useEffect(() => { charger(); }, [charger]);
 
@@ -39,11 +42,12 @@ export default function Promotions({ produits, boutiqueId, monNom, onStatut, onR
     if (arts.length === 0) { onStatut && onStatut("⚠️ Choisis au moins un article."); return; }
     if (fin < debut) { onStatut && onStatut("⚠️ La date de fin doit suivre le début."); return; }
     setEnCours(true);
-    const { error } = await supabase.from("promotions").insert({
-      boutique_id: boutiqueId, date_debut: debut, date_fin: fin, pourcentage: pourcent, notes: notes.trim() || null, produits: arts, cree_par: monNom,
-    });
+    const row = { boutique_id: boutiqueId, date_debut: debut, date_fin: fin, pourcentage: pourcent, notes: notes.trim() || null, produits: arts, cree_par: monNom };
+    const { error } = await supabase.from("promotions").insert(row);
     setEnCours(false);
-    if (error) { onStatut && onStatut(msgErreur(error)); return; }
+    if (error && !estIndisponible(error)) { onStatut && onStatut(msgErreur(error)); return; }
+    // Table absente ou hors-ligne : on garde la promo en local, elle reste visible.
+    if (error) ajouterLocal(`promotions_${boutiqueId}`, row);
     setCreation(false); setArts([]); setPct("10"); setNotes("");
     onStatut && onStatut("✅ Promotion créée.");
     charger(); onRefresh && onRefresh();
@@ -51,7 +55,11 @@ export default function Promotions({ produits, boutiqueId, monNom, onStatut, onR
 
   const supprimer = async (id) => {
     if (!confirm("Supprimer cette promotion ?")) return;
-    await supabase.from("promotions").delete().eq("id", id);
+    if (estLocal(id)) supprimerLocal(`promotions_${boutiqueId}`, id);
+    else {
+      const { error } = await supabase.from("promotions").delete().eq("id", id);
+      if (error && estIndisponible(error)) supprimerLocal(`promotions_${boutiqueId}`, id);
+    }
     charger(); onRefresh && onRefresh();
   };
 

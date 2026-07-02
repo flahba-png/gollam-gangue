@@ -3,6 +3,7 @@ import { C, fmt, appeler, heure, todayISO } from "../theme";
 import { supabase } from "../supabase";
 import { relancerWhatsApp } from "../relance";
 import { msgErreur } from "../erreurs";
+import { estIndisponible, estLocal, lireLocal, ecrireLocal, supprimerLocal } from "../fallback";
 
 // Suivi Client : ergonomie type messagerie (liste de discussions + fil par client).
 // Le fil mélange : transactions/reçus (historique), alerte "reste à payer" (crédits)
@@ -33,6 +34,7 @@ export default function SuiviClient({ credits, historique, boutiqueId, boutique,
   const [plafonds, setPlafonds] = useState({}); // client(lower) -> plafond
   const [editPlaf, setEditPlaf] = useState("");
   const [clientsManuels, setClientsManuels] = useState([]);
+  const [archives, setArchives] = useState([]); // noms (lower) masqués de la liste
   const [ajoutOuvert, setAjoutOuvert] = useState(false);
   const [nvNom, setNvNom] = useState("");
   const [nvPhone, setNvPhone] = useState("");
@@ -40,18 +42,70 @@ export default function SuiviClient({ credits, historique, boutiqueId, boutique,
 
   const chargerClients = useCallback(async () => {
     if (!boutiqueId) { setClientsManuels([]); return; }
-    const { data } = await supabase.from("clients").select("*").eq("boutique_id", boutiqueId);
-    setClientsManuels(data || []);
+    const cle = `clients_${boutiqueId}`;
+    const { data, error } = await supabase.from("clients").select("*").eq("boutique_id", boutiqueId);
+    if (error) {
+      // Table absente ou réseau coupé : on retombe sur les clients gardés en local.
+      if (estIndisponible(error)) { setClientsManuels(lireLocal(cle)); return; }
+      setClientsManuels([]); return;
+    }
+    // Fusionne les clients restés en local (pas encore synchronisés) avec ceux de la base.
+    const enBase = data || [];
+    const locaux = lireLocal(cle).filter(l => !enBase.some(d => norm(d.nom) === norm(l.nom)));
+    setClientsManuels([...enBase, ...locaux]);
   }, [boutiqueId]);
 
   const ajouterClient = async () => {
     const nom = nvNom.trim();
     if (!nom || !boutiqueId) { onStatut && onStatut("⚠️ Donne au moins un nom."); return; }
-    const { error } = await supabase.from("clients").insert({ boutique_id: boutiqueId, nom, phone: nvPhone.trim() || null });
-    if (error) { onStatut && onStatut(msgErreur(error)); return; }
+    if (clients.some(c => norm(c.nom) === norm(nom))) {
+      onStatut && onStatut(`ℹ️ Le client « ${nom} » existe déjà.`);
+      setNvNom(""); setNvPhone(""); setAjoutOuvert(false);
+      return;
+    }
+    const phone = nvPhone.trim() || null;
+    const { error } = await supabase.from("clients").insert({ boutique_id: boutiqueId, nom, phone });
+    if (error && !estIndisponible(error)) { onStatut && onStatut(msgErreur(error)); return; }
+    if (error) {
+      // Indisponible (table pas encore créée ou hors-ligne) : on garde le client en local.
+      // Il reste utilisable tout de suite et se synchronisera quand la base sera prête.
+      const cle = `clients_${boutiqueId}`;
+      const locaux = lireLocal(cle);
+      if (!locaux.some(l => norm(l.nom) === norm(nom))) {
+        locaux.push({ id: `local-${Date.now()}`, boutique_id: boutiqueId, nom, phone, _local: true });
+        ecrireLocal(cle, locaux);
+      }
+    }
     setNvNom(""); setNvPhone(""); setAjoutOuvert(false);
     chargerClients();
     onStatut && onStatut(`✅ Client « ${nom} » ajouté.`);
+  };
+
+  // Supprimer (client manuel sans historique) ou masquer (client avec ventes/crédits).
+  const supprimerClient = async (c) => {
+    const aHistorique = (c.totalAchats || 0) > 0 || (c.dette || 0) > 0;
+    if (aHistorique) {
+      if (!confirm(`Masquer « ${c.nom} » de la liste ?\nSon historique de ventes et de crédits sera conservé.`)) return;
+      const cle = `clients_archives_${boutiqueId}`;
+      const arch = lireLocal(cle);
+      if (!arch.includes(norm(c.nom))) { arch.push(norm(c.nom)); ecrireLocal(cle, arch); }
+      setArchives(arch.slice());
+      onStatut && onStatut(`👁️ « ${c.nom} » masqué de la liste.`);
+    } else {
+      if (!confirm(`Supprimer définitivement le client « ${c.nom} » ?`)) return;
+      const enr = clientsManuels.find(m => norm(m.nom) === norm(c.nom));
+      if (enr && !estLocal(enr.id)) {
+        const { error } = await supabase.from("clients").delete().eq("id", enr.id);
+        if (error && !estIndisponible(error)) { onStatut && onStatut(msgErreur(error)); return; }
+      }
+      // Retire aussi toute trace locale du même nom.
+      const cle = `clients_${boutiqueId}`;
+      if (enr) supprimerLocal(cle, enr.id);
+      ecrireLocal(cle, lireLocal(cle).filter(x => norm(x.nom) !== norm(c.nom)));
+      onStatut && onStatut(`🗑️ Client « ${c.nom} » supprimé.`);
+    }
+    setClientSel(null);
+    chargerClients();
   };
 
   // Config fidélité (portée par la boutique). Le patron l'active/règle.
@@ -109,6 +163,7 @@ export default function SuiviClient({ credits, historique, boutiqueId, boutique,
   }, [boutiqueId]);
   useEffect(() => { chargerPlafonds(); }, [chargerPlafonds]);
   useEffect(() => { chargerClients(); }, [chargerClients]);
+  useEffect(() => { setArchives(boutiqueId ? lireLocal(`clients_archives_${boutiqueId}`) : []); }, [boutiqueId]);
 
   const definirPlafond = async (nomClient) => {
     if (!boutiqueId) return;
@@ -152,7 +207,7 @@ export default function SuiviClient({ credits, historique, boutiqueId, boutique,
     return [...map.values()].sort((a, b) => b.dernierTs - a.dernierTs);
   }, [credits, historique, clientsManuels]);
 
-  const filtres = clients.filter(c => !recherche || norm(c.nom).includes(norm(recherche)));
+  const filtres = clients.filter(c => !archives.includes(norm(c.nom)) && (!recherche || norm(c.nom).includes(norm(recherche))));
 
   // Notes du client sélectionné
   const chargerNotes = useCallback(async () => {
@@ -340,14 +395,17 @@ export default function SuiviClient({ credits, historique, boutiqueId, boutique,
           <div style={{ color: C.text, fontSize: 14, fontWeight: "bold" }}>{clientSel.nom}</div>
           <div style={{ color: C.muted, fontSize: 11 }}>{clientSel.phone || "Pas de numéro"}</div>
         </div>
-        {clientSel.phone && (
-          <div style={{ display: "flex", gap: 6 }}>
+        <div style={{ display: "flex", gap: 6 }}>
+          {clientSel.phone && (
             <button onClick={() => appeler(clientSel.phone)} title="Appeler" style={{ background: C.green + "22", color: C.green, border: `1px solid ${C.green}44`, borderRadius: 8, padding: "6px 9px", fontSize: 14, cursor: "pointer" }}>📞</button>
-            {clientSel.dette > 0 && (
-              <button onClick={() => relancerWhatsApp({ nom: clientSel.nom, phone: clientSel.phone, reste: clientSel.dette }, boutique)} title="Relancer (WhatsApp)" style={{ background: "#25D36622", color: "#25D366", border: "1px solid #25D36644", borderRadius: 8, padding: "6px 9px", fontSize: 14, cursor: "pointer" }}>💬</button>
-            )}
-          </div>
-        )}
+          )}
+          {clientSel.phone && clientSel.dette > 0 && (
+            <button onClick={() => relancerWhatsApp({ nom: clientSel.nom, phone: clientSel.phone, reste: clientSel.dette }, boutique)} title="Relancer (WhatsApp)" style={{ background: "#25D36622", color: "#25D366", border: "1px solid #25D36644", borderRadius: 8, padding: "6px 9px", fontSize: 14, cursor: "pointer" }}>💬</button>
+          )}
+          <button onClick={() => supprimerClient(clientSel)}
+            title={(clientSel.totalAchats || 0) > 0 || (clientSel.dette || 0) > 0 ? "Masquer de la liste (garde l'historique)" : "Supprimer le client"}
+            style={{ background: C.red + "18", color: C.red, border: `1px solid ${C.red}44`, borderRadius: 8, padding: "6px 9px", fontSize: 14, cursor: "pointer" }}>🗑️</button>
+        </div>
       </div>
 
       {/* Alerte financière épinglée */}

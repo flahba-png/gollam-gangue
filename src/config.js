@@ -19,4 +19,5 @@ export const PAIEMENT_INFOS = {
 
 // Tarif de l'abonnement
 export const PRIX_ABONNEMENT = 18000; // FCFA / mois
+export const PRIX_ABONNEMENT_ANNUEL = 180000; // FCFA / an (2 mois offerts vs 12 x mensuel)
 export const DUREE_ESSAI_JOURS = 14;

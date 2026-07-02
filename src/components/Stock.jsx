@@ -57,7 +57,9 @@ export default function Stock({ produits, boutiqueId, onRefresh, fournisseurs = 
 
   const startEdit = (p) => {
     setEditId(p.id);
-    setEditData({ nom: p.nom, categorie: p.categorie || "", prixAchat: p.prix_achat, prixVente: p.prix_vente, stock: p.stock, seuil: p.seuil_alerte ?? 2, fournisseurId: p.fournisseur_id || "", codeBarre: p.code_barre || "", refOem: p.reference_oem || "", compat: p.compatibilite || "", frais: p.frais_unitaire || 0, carton: p.unites_par_carton || 1 });
+    setEditData({ nom: p.nom, categorie: p.categorie || "", prixAchat: p.prix_achat, prixVente: p.prix_vente, stock: p.stock, seuil: p.seuil_alerte ?? 2, fournisseurId: p.fournisseur_id || "", codeBarre: p.code_barre || "", refOem: p.reference_oem || "", compat: p.compatibilite || "", frais: p.frais_unitaire || 0, carton: p.unites_par_carton || 1,
+      prixDemiGros: p.prix_demi_gros || "", prixGros: p.prix_gros || "",
+      seuilDemiGros: p.seuil_demi_gros ?? 3, seuilGros: p.seuil_gros ?? ((p.unites_par_carton || 0) > 1 ? p.unites_par_carton : "") });
   };
 
   const saveEdit = async () => {
@@ -76,6 +78,10 @@ export default function Stock({ produits, boutiqueId, onRefresh, fournisseurs = 
       compatibilite: editData.compat || null,
       frais_unitaire: parseInt(editData.frais) || 0,
       unites_par_carton: Math.max(1, parseInt(editData.carton) || 1),
+      prix_demi_gros: parseInt(editData.prixDemiGros) || 0,
+      prix_gros: parseInt(editData.prixGros) || 0,
+      seuil_demi_gros: parseInt(editData.seuilDemiGros) || 0,
+      seuil_gros: parseInt(editData.seuilGros) || 0,
     };
     await supabase.from("produits").update(nouveau).eq("id", editId);
     if (onAudit) await onAudit({ table: "produits", cibleId: editId, action: "modification", ancien, nouveau });
@@ -176,6 +182,22 @@ export default function Stock({ produits, boutiqueId, onRefresh, fournisseurs = 
                   <input type="number" value={editData.stock} onChange={e => setEditData(d => ({ ...d, stock: e.target.value }))}
                     style={inputStyle} placeholder="Stock" />
                 </div>
+                {/* Tarifs gros (facultatif) */}
+                <div style={{ background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 6, padding: 8 }}>
+                  <div style={{ fontSize: 9, color: C.muted, fontWeight: "bold", letterSpacing: 0.5, marginBottom: 6 }}>💰 TARIFS GROS (facultatif)</div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 6, marginBottom: 6 }}>
+                    <input type="number" value={editData.prixDemiGros} onChange={e => setEditData(d => ({ ...d, prixDemiGros: e.target.value }))}
+                      style={inputStyle} placeholder="Prix demi-gros" />
+                    <input type="number" value={editData.seuilDemiGros} onChange={e => setEditData(d => ({ ...d, seuilDemiGros: e.target.value }))}
+                      style={inputStyle} placeholder="dès … u" title="Quantité à partir de laquelle le prix demi-gros s'applique" />
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 6 }}>
+                    <input type="number" value={editData.prixGros} onChange={e => setEditData(d => ({ ...d, prixGros: e.target.value }))}
+                      style={inputStyle} placeholder="Prix gros" />
+                    <input type="number" value={editData.seuilGros} onChange={e => setEditData(d => ({ ...d, seuilGros: e.target.value }))}
+                      style={inputStyle} placeholder="dès … u" title="Quantité à partir de laquelle le prix gros s'applique (souvent le carton)" />
+                  </div>
+                </div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1.4fr", gap: 6 }}>
                   <input type="number" value={editData.seuil} onChange={e => setEditData(d => ({ ...d, seuil: e.target.value }))}
                     style={inputStyle} placeholder="Seuil alerte" title="Alerte de réassort quand le stock atteint ce niveau" />
@@ -222,6 +244,13 @@ export default function Stock({ produits, boutiqueId, onRefresh, fournisseurs = 
                   <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>
                     {voirPrixAchat && <>Achat : {fmt(p.prix_achat)} · </>}Vente : {fmt(p.prix_vente)}
                   </div>
+                  {((p.prix_demi_gros || 0) > 0 || (p.prix_gros || 0) > 0) && (
+                    <div style={{ fontSize: 10, color: C.green, marginTop: 1 }}>
+                      {(p.prix_demi_gros || 0) > 0 && <>½gros {fmt(p.prix_demi_gros)} dès {p.seuil_demi_gros || 3}u</>}
+                      {(p.prix_demi_gros || 0) > 0 && (p.prix_gros || 0) > 0 && " · "}
+                      {(p.prix_gros || 0) > 0 && <>gros {fmt(p.prix_gros)} dès {p.seuil_gros || "?"}u</>}
+                    </div>
+                  )}
                   {voirPrixAchat && (
                     <div style={{ fontSize: 10, color: C.yellow, marginTop: 1 }}>
                       Marge nette : +{fmt((p.prix_vente || 0) - (p.prix_achat || 0) - (p.frais_unitaire || 0))}/u

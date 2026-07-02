@@ -55,6 +55,11 @@ alter table produits add column if not exists reference_oem text;
 alter table produits add column if not exists compatibilite text;
 alter table produits add column if not exists frais_unitaire integer default 0;
 alter table produits add column if not exists unites_par_carton integer default 1;
+-- Tarification à paliers : demi-gros / gros + seuils de quantité (migration 35)
+alter table produits add column if not exists prix_demi_gros integer default 0;
+alter table produits add column if not exists prix_gros integer default 0;
+alter table produits add column if not exists seuil_demi_gros integer default 0;
+alter table produits add column if not exists seuil_gros integer default 0;
 
 -- ========== HISTORIQUE ==========
 create table if not exists historique (
