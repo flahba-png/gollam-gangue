@@ -82,8 +82,8 @@ export default function ProduitSelect({
           <span style={{ flex: 1, color: C.text, fontSize: 13 }}>
             {selne.nom} <span style={{ color: C.muted, fontSize: 11 }}>· stock {selne.stockTotal ?? selne.stock ?? 0}</span>
           </span>
-          <button type="button" onClick={effacer} title="Changer"
-            style={{ background: "transparent", border: "none", color: C.muted, cursor: "pointer", fontSize: 14 }}>✕</button>
+          <button type="button" onClick={effacer} title="Changer" aria-label="Changer de produit"
+            style={{ background: "transparent", border: "none", color: C.muted, cursor: "pointer", fontSize: 15, padding: "8px 10px", margin: "-8px -6px -8px 0" }}>✕</button>
         </div>
       ) : (
         <input

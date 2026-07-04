@@ -87,7 +87,7 @@ export default function Promotions({ produits, boutiqueId, monNom, onStatut, onR
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6, margin: "8px 0" }}>
             {arts.map(nom => (
               <span key={nom} style={{ display: "inline-flex", alignItems: "center", gap: 6, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 14, padding: "4px 10px", fontSize: 12, color: C.text }}>
-                {nom} <span onClick={() => retirerArt(nom)} style={{ color: C.red, cursor: "pointer", fontWeight: "bold" }}>✕</span>
+                {nom} <span onClick={() => retirerArt(nom)} role="button" aria-label="Retirer l'article" style={{ color: C.red, cursor: "pointer", fontWeight: "bold", padding: "6px 8px", margin: "-6px -8px -6px -2px" }}>✕</span>
               </span>
             ))}
             {arts.length === 0 && <span style={{ fontSize: 11, color: C.muted, fontStyle: "italic" }}>Aucun article sélectionné.</span>}
@@ -114,7 +114,7 @@ export default function Promotions({ produits, boutiqueId, monNom, onStatut, onR
               </div>
               <div style={{ textAlign: "right", flexShrink: 0, marginLeft: 8 }}>
                 {badge(statutPromo(p))}
-                <div><button onClick={() => supprimer(p.id)} style={{ marginTop: 6, background: C.red + "18", color: C.red, border: `1px solid ${C.red}33`, borderRadius: 4, padding: "2px 8px", fontSize: 10, cursor: "pointer" }}>🗑️</button></div>
+                <div><button onClick={() => supprimer(p.id)} aria-label="Supprimer la promotion" style={{ marginTop: 6, background: C.red + "18", color: C.red, border: `1px solid ${C.red}33`, borderRadius: 8, padding: "8px 12px", fontSize: 14, cursor: "pointer" }}>🗑️</button></div>
               </div>
             </div>
           </div>

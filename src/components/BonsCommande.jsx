@@ -151,7 +151,7 @@ export default function BonsCommande({ produits, fournisseurs = [], boutiqueId, 
             <div key={l.nom} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 0", borderBottom: `1px solid ${C.border}`, fontSize: 12 }}>
               <span style={{ color: C.text }}>{l.qte}× {l.nom} <span style={{ color: C.muted }}>@ {fmt(l.prix)}</span></span>
               <span style={{ display: "flex", gap: 8, alignItems: "center" }}><b style={{ color: C.green }}>{fmt(l.qte * l.prix)}</b>
-                <button onClick={() => retirerLigne(l.nom)} style={{ background: C.red + "22", color: C.red, border: "none", borderRadius: 4, padding: "2px 6px", cursor: "pointer" }}>✕</button></span>
+                <button onClick={() => retirerLigne(l.nom)} aria-label="Retirer la ligne" style={{ background: C.red + "22", color: C.red, border: "none", borderRadius: 8, padding: "8px 11px", fontSize: 13, cursor: "pointer" }}>✕</button></span>
             </div>
           ))}
           <div style={{ display: "flex", justifyContent: "space-between", margin: "10px 0", fontWeight: "bold", color: C.text }}>

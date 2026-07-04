@@ -929,12 +929,12 @@ export default function App() {
               {dernierBackup ? `Dernière sauvegarde il y a ${jours} jours.` : "Tu n'as pas encore sauvegardé tes données."} Pense à protéger ton business.
             </div>
             <button onClick={exporterDonnees} style={{ background: C.green, color: C.bg, border: "none", borderRadius: 8, padding: "7px 11px", fontSize: 12, fontWeight: "bold", cursor: "pointer", whiteSpace: "nowrap" }}>Sauvegarder</button>
-            <button onClick={() => setRappelBackupMasque(true)} title="Plus tard" style={{ background: "transparent", border: "none", color: C.muted, fontSize: 16, cursor: "pointer" }}>✕</button>
+            <button onClick={() => setRappelBackupMasque(true)} title="Plus tard" aria-label="Plus tard" style={{ background: "transparent", border: "none", color: C.muted, fontSize: 16, cursor: "pointer", padding: "8px 10px", margin: "-8px -6px" }}>✕</button>
           </div>
         );
       })()}
 
-      <div key={onglet} className="tab-content" style={{ paddingTop: 12, paddingBottom: 70 }}>
+      <div key={onglet} className="tab-content" style={{ paddingTop: 12, paddingBottom: "calc(70px + env(safe-area-inset-bottom))" }}>
        <Suspense fallback={<div style={{ padding: 40, textAlign: "center", color: C.muted, fontSize: 13 }}>⏳ Chargement…</div>}>
         {onglet === "dashboard" && <Dashboard kpi={kpi} historique={historique} credits={credits} produits={produits} estPatron={peutVoirBenefice} onImprimer={h => imprimerFacture(h, boutique)} onWhatsApp={h => envoyerRecuWhatsApp(h, boutique)} onVoirCredits={() => setOnglet("credits")} cameras={(!vueGlobale && boutiqueActive?.cameras) || []} peutGererCameras={estPatron && !vueGlobale} onSurveillance={() => setSurveillanceOuverte(true)} />}
         {onglet === "saisie" && (
@@ -1052,7 +1052,7 @@ export default function App() {
       {menuPlus && (
         <>
           <div onClick={() => setMenuPlus(false)} style={{ position: "fixed", inset: 0, zIndex: 150, background: "rgba(0,0,0,0.5)" }} />
-          <div style={{ position: "fixed", bottom: 60, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 480, zIndex: 151, padding: "0 12px", boxSizing: "border-box" }}>
+          <div style={{ position: "fixed", bottom: "calc(60px + env(safe-area-inset-bottom))", left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 480, zIndex: 151, padding: "0 12px", boxSizing: "border-box" }}>
             <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, padding: 10, boxShadow: "0 12px 40px rgba(0,0,0,0.5)" }}>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
                 {secondaires.map(tab => {

@@ -271,12 +271,12 @@ export default function Stock({ produits, boutiqueId, onRefresh, fournisseurs = 
                     {p.stock || 0} u
                   </span>
                   {peutModifier && <div style={{ display: "flex", gap: 4 }}>
-                    <button onClick={() => startEdit(p)}
-                      style={{ background: C.blue + "22", color: C.blue, border: `1px solid ${C.blue}44`, padding: "2px 8px", borderRadius: 4, fontSize: 10, cursor: "pointer" }}>
+                    <button onClick={() => startEdit(p)} aria-label="Modifier"
+                      style={{ background: C.blue + "22", color: C.blue, border: `1px solid ${C.blue}44`, padding: "8px 12px", borderRadius: 8, fontSize: 14, cursor: "pointer" }}>
                       ✏️
                     </button>
-                    <button onClick={() => supprimerProduit(p.id)}
-                      style={{ background: C.red + "22", color: C.red, border: `1px solid ${C.red}44`, padding: "2px 8px", borderRadius: 4, fontSize: 10, cursor: "pointer" }}>
+                    <button onClick={() => supprimerProduit(p.id)} aria-label="Supprimer"
+                      style={{ background: C.red + "22", color: C.red, border: `1px solid ${C.red}44`, padding: "8px 12px", borderRadius: 8, fontSize: 14, cursor: "pointer" }}>
                       🗑️
                     </button>
                   </div>}

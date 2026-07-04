@@ -292,7 +292,7 @@ export default function SaisieForm({ produits, onSubmit, chargement, estEntrepot
                     style={{ width: 82, padding: "5px", background: C.surface, border: `1px solid ${C.border}`, borderRadius: 6, color: C.text, fontSize: 12, textAlign: "right" }} />
                   <input type="number" min="1" value={l.qte} onChange={e => majQte(l.produitId, e.target.value)} title="Quantité"
                     style={{ width: 46, padding: "5px", background: C.surface, border: `1px solid ${C.border}`, borderRadius: 6, color: C.text, fontSize: 12, textAlign: "center" }} />
-                  <button type="button" onClick={() => retirerLigne(l.produitId)} style={{ background: C.red + "22", color: C.red, border: `1px solid ${C.red}44`, padding: "4px 6px", borderRadius: 6, fontSize: 11, cursor: "pointer" }}>✕</button>
+                  <button type="button" onClick={() => retirerLigne(l.produitId)} aria-label="Retirer du panier" style={{ background: C.red + "22", color: C.red, border: `1px solid ${C.red}44`, padding: "9px 11px", borderRadius: 8, fontSize: 13, cursor: "pointer" }}>✕</button>
                 </div>
                 {/* Sélecteur de tarif (uniquement si le produit a des prix de gros) */}
                 {l.aPaliers && (

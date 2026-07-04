@@ -195,7 +195,7 @@ export default function Documents({ produits, boutiqueActive, boutique, credits 
               <span style={{ color: C.text }}>{l.qte}x {l.nom}</span>
               <span style={{ display: "flex", gap: 8, alignItems: "center" }}>
                 <span style={{ color: C.muted }}>{fmt(l.qte * l.pu)}</span>
-                <button onClick={() => setLignes(prev => prev.filter((_, j) => j !== i))} style={{ background: C.red + "22", color: C.red, border: "none", borderRadius: 4, padding: "2px 6px", cursor: "pointer", fontSize: 10 }}>✕</button>
+                <button onClick={() => setLignes(prev => prev.filter((_, j) => j !== i))} aria-label="Retirer la ligne" style={{ background: C.red + "22", color: C.red, border: "none", borderRadius: 8, padding: "8px 11px", cursor: "pointer", fontSize: 13 }}>✕</button>
               </span>
             </div>
           ))}
