@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Html5Qrcode, Html5QrcodeScannerState } from "html5-qrcode";
 import { C } from "../theme";
 
 // Modal de scan code-barres via la caméra arrière du téléphone.
+// La librairie html5-qrcode (~350 Ko) est chargée dynamiquement à l'ouverture
+// du scanner, pour ne pas alourdir le démarrage de l'app.
 // Robuste : si la caméra est refusée/indisponible, on affiche un message
 // au lieu de planter (toutes les opérations html5-qrcode sont protégées).
 export default function Scanner({ onScan, onClose }) {
@@ -10,37 +11,45 @@ export default function Scanner({ onScan, onClose }) {
   const scannerRef = useRef(null);
   const scanneRef = useRef(false); // évite les doubles lectures
 
-  // Arrête proprement le scanner sans jamais lever d'erreur
-  const stopperSur = async (scanner) => {
-    if (!scanner) return;
-    try {
-      const etat = scanner.getState && scanner.getState();
-      if (etat === Html5QrcodeScannerState.SCANNING || etat === Html5QrcodeScannerState.PAUSED) {
-        await scanner.stop();
-      }
-    } catch { /* ignore */ }
-    try { scanner.clear(); } catch { /* ignore */ }
-  };
-
   useEffect(() => {
-    const scanner = new Html5Qrcode("reader");
-    scannerRef.current = scanner;
+    let annule = false;
+    let stopper = async () => {};
 
-    scanner.start(
-      { facingMode: "environment" },
-      { fps: 10, qrbox: { width: 250, height: 160 } },
-      (decodedText) => {
-        if (scanneRef.current) return;
-        scanneRef.current = true;
-        stopperSur(scanner).finally(() => onScan(decodedText));
-      },
-      () => {} // erreurs de frame ignorées
-    ).catch((e) => {
-      console.warn("Caméra indisponible :", e?.message || e);
-      setErreur("Caméra indisponible. Autorise l'accès à la caméra dans ton navigateur, ou saisis le produit manuellement.");
-    });
+    import("html5-qrcode").then(({ Html5Qrcode, Html5QrcodeScannerState }) => {
+      if (annule) return;
 
-    return () => { stopperSur(scannerRef.current); };
+      // Arrête proprement le scanner sans jamais lever d'erreur
+      stopper = async () => {
+        const scanner = scannerRef.current;
+        if (!scanner) return;
+        try {
+          const etat = scanner.getState && scanner.getState();
+          if (etat === Html5QrcodeScannerState.SCANNING || etat === Html5QrcodeScannerState.PAUSED) {
+            await scanner.stop();
+          }
+        } catch { /* ignore */ }
+        try { scanner.clear(); } catch { /* ignore */ }
+      };
+
+      const scanner = new Html5Qrcode("reader");
+      scannerRef.current = scanner;
+
+      scanner.start(
+        { facingMode: "environment" },
+        { fps: 10, qrbox: { width: 250, height: 160 } },
+        (decodedText) => {
+          if (scanneRef.current) return;
+          scanneRef.current = true;
+          stopper().finally(() => onScan(decodedText));
+        },
+        () => {} // erreurs de frame ignorées
+      ).catch((e) => {
+        console.warn("Caméra indisponible :", e?.message || e);
+        setErreur("Caméra indisponible. Autorise l'accès à la caméra dans ton navigateur, ou saisis le produit manuellement.");
+      });
+    }).catch(() => setErreur("Scanner indisponible. Vérifie ta connexion puis réessaie."));
+
+    return () => { annule = true; stopper(); };
   }, [onScan]);
 
   return (
