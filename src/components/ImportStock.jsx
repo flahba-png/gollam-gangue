@@ -162,7 +162,7 @@ export default function ImportStock({ produits, boutiqueId, onRefresh, onStatut,
       <div onClick={e => e.stopPropagation()} style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, padding: 18, width: "100%", maxWidth: 560, margin: "auto" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
           <div style={{ fontSize: 16, fontWeight: "bold", color: C.text }}>📥 Importer le stock (Excel / CSV)</div>
-          <button onClick={onClose} style={{ background: "transparent", border: "none", color: C.muted, fontSize: 18, cursor: "pointer" }}>✕</button>
+          <button onClick={onClose} aria-label="Fermer" style={{ width: 40, height: 40, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 10, color: C.text, fontSize: 18, cursor: "pointer" }}>✕</button>
         </div>
 
         {/* ÉTAPE 1 : FICHIER */}

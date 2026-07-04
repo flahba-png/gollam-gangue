@@ -82,7 +82,7 @@ export default function Compte({ email, onClose, onLogout, onStatut, onExport, o
       <div onClick={e => e.stopPropagation()} style={{ width: "100%", maxWidth: 380, background: C.surface, borderRadius: 14, border: `1px solid ${C.border}`, padding: 20, margin: "auto" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
           <div style={{ fontSize: 16, fontWeight: "bold", color: C.text }}>⚙️ Mon compte</div>
-          <button onClick={onClose} style={{ background: "transparent", border: "none", color: C.muted, fontSize: 18, cursor: "pointer" }}>✕</button>
+          <button onClick={onClose} aria-label="Fermer" style={{ width: 40, height: 40, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 10, color: C.text, fontSize: 18, cursor: "pointer" }}>✕</button>
         </div>
 
         {/* SÉLECTEUR DE BOUTIQUE */}

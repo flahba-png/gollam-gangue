@@ -65,7 +65,7 @@ export default function RechercheGlobale({ produits, credits, historique, onNavi
           <input ref={inputRef} value={q} onChange={e => setQ(e.target.value)}
             placeholder="🔍 Produit, client, facture..."
             style={{ flex: 1, padding: "11px 14px", background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 10, color: C.text, fontSize: 14, outline: "none" }} />
-          <button onClick={onClose} style={{ background: "transparent", border: "none", color: C.muted, fontSize: 18, cursor: "pointer" }}>✕</button>
+          <button onClick={onClose} aria-label="Fermer" style={{ width: 40, height: 40, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 10, color: C.text, fontSize: 18, cursor: "pointer" }}>✕</button>
         </div>
 
         <div style={{ overflowY: "auto" }}>
