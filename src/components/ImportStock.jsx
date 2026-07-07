@@ -3,6 +3,7 @@ import * as XLSX from "xlsx";
 import { C, fmt } from "../theme";
 import { supabase } from "../supabase";
 import { msgErreur } from "../erreurs";
+import { estIndisponible } from "../fallback";
 
 // Import de stock en masse depuis un fichier Excel (.xlsx/.xls) ou CSV.
 // Étapes : 1) fichier → 2) mappage colonnes → 3) aperçu + doublons → 4) import.
@@ -115,12 +116,24 @@ export default function ImportStock({ produits, boutiqueId, onRefresh, onStatut,
     setEnCours(true);
     setErreur("");
     try {
-      // 1. Nouveaux produits : insertion en lot
+      // 1. Nouveaux produits : insertion en lot.
+      // Les colonnes de tarifs gros ne sont envoyées que si elles sont mappées
+      // (et si la base ne les connaît pas encore, on réessaie sans elles).
+      const avecGros = ["prix_demi_gros", "prix_gros", "seuil_demi_gros", "seuil_gros"].some(k => mapping[k] != null);
+      const sansGros = (row) => { const { prix_demi_gros, prix_gros, seuil_demi_gros, seuil_gros, ...reste } = row; return reste; };
       const nouveaux = prepares.filter(p => !p.existant)
-        .map(p => ({ boutique_id: boutiqueId, nom: p.nom, prix_achat: p.prix_achat, prix_vente: p.prix_vente, prix_demi_gros: p.prix_demi_gros, prix_gros: p.prix_gros, seuil_demi_gros: p.seuil_demi_gros, seuil_gros: p.seuil_gros, stock: p.stock, categorie: p.categorie, reference_oem: p.reference_oem, code_barre: p.code_barre }));
+        .map(p => ({
+          boutique_id: boutiqueId, nom: p.nom, prix_achat: p.prix_achat, prix_vente: p.prix_vente,
+          ...(avecGros ? { prix_demi_gros: p.prix_demi_gros, prix_gros: p.prix_gros, seuil_demi_gros: p.seuil_demi_gros, seuil_gros: p.seuil_gros } : {}),
+          stock: p.stock, categorie: p.categorie, reference_oem: p.reference_oem, code_barre: p.code_barre,
+        }));
       for (let i = 0; i < nouveaux.length; i += 200) {
-        const lot = nouveaux.slice(i, i + 200);
-        const { error } = await supabase.from("produits").insert(lot);
+        let lot = nouveaux.slice(i, i + 200);
+        let { error } = await supabase.from("produits").insert(lot);
+        if (error && estIndisponible(error) && avecGros) {
+          // Base pas encore migrée : on réimporte sans les colonnes de gros
+          ({ error } = await supabase.from("produits").insert(lot.map(sansGros)));
+        }
         if (error) throw error;
       }
       // 2. Doublons en mode "mise à jour"
@@ -140,7 +153,11 @@ export default function ImportStock({ produits, boutiqueId, onRefresh, onStatut,
           if (p.categorie) patch.categorie = p.categorie;
           if (p.reference_oem) patch.reference_oem = p.reference_oem;
           if (p.code_barre) patch.code_barre = p.code_barre;
-          const { error } = await supabase.from("produits").update(patch).eq("id", exist.id);
+          let { error } = await supabase.from("produits").update(patch).eq("id", exist.id);
+          if (error && estIndisponible(error)) {
+            // Base pas encore migrée : on met à jour sans les colonnes de gros
+            ({ error } = await supabase.from("produits").update(sansGros(patch)).eq("id", exist.id));
+          }
           if (!error) majFaites++;
         }
       }
