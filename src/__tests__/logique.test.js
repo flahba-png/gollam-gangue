@@ -97,6 +97,15 @@ describe("analytics — CA mensuel", () => {
   it("renvoie n mois", () => {
     expect(caMensuel([], 6)).toHaveLength(6);
   });
+  it("soustrait les retours du CA du mois", () => {
+    const iso = new Date().toISOString().split("T")[0];
+    const histo = [
+      { type: "vente", date_iso: iso, montant: 1000 },
+      { type: "retour", date_iso: iso, montant: 300 },
+    ];
+    const mois = caMensuel(histo, 1);
+    expect(mois[0].value).toBe(700); // 1000 − 300
+  });
 });
 
 describe("résilience — filet de sécurité (fallback)", () => {

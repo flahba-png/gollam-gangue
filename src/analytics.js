@@ -76,8 +76,8 @@ export const caMensuel = (historique, n = 6) => {
     const prefixe = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
     const label = d.toLocaleDateString("fr-FR", { month: "short" });
     const value = historique
-      .filter(h => h.type === "vente" && (h.date_iso || "").startsWith(prefixe))
-      .reduce((s, h) => s + (h.montant || 0), 0);
+      .filter(h => (h.type === "vente" || h.type === "retour") && (h.date_iso || "").startsWith(prefixe))
+      .reduce((s, h) => s + (h.type === "retour" ? -(h.montant || 0) : (h.montant || 0)), 0);
     mois.push({ label, value });
   }
   return mois;

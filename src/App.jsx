@@ -444,12 +444,35 @@ export default function App() {
     const marge = margeRendue - remiseProp;
     const resume = lignesRetour.filter(l => l.qte).map(l => `${l.qte}x ${l.nom}`).join(", ");
 
+    // Vente d'origine à crédit : le retour réduit D'ABORD la dette du client
+    // (plus anciennes fiches en premier). Seul le surplus éventuel — si la dette
+    // était déjà remboursée — est rendu en espèces et sort de la caisse.
+    let refundCaisse = refund;
+    let detteReduite = 0;
+    const clientOrig = venteLog.details_facture?.client;
+    if (venteLog.details_facture?.type === "Vente à Crédit" && clientOrig) {
+      const { data: fiches } = await supabase.from("credits").select("*").eq("boutique_id", uid).ilike("client", clientOrig);
+      const ouvertes = (fiches || []).filter(f => (f.reste_a_payer || 0) > 0)
+        .sort((a, b) => new Date(a.created_at || a.date || 0) - new Date(b.created_at || b.date || 0));
+      let aDeduire = refund;
+      for (const f of ouvertes) {
+        if (aDeduire <= 0) break;
+        const d = Math.min(aDeduire, f.reste_a_payer);
+        const nouveau = f.reste_a_payer - d;
+        if (nouveau === 0) await supabase.from("credits").delete().eq("id", f.id);
+        else await supabase.from("credits").update({ reste_a_payer: nouveau }).eq("id", f.id);
+        aDeduire -= d;
+        detteReduite += d;
+      }
+      refundCaisse = aDeduire;
+    }
+
     await supabase.from("historique").insert({
       boutique_id: uid, heure: heure(), date_iso: todayISO(),
-      texte: `↩️ Retour ${resume}`, type: "retour",
-      montant: refund, benefice_etabli: -marge,
+      texte: `↩️ Retour ${resume}${detteReduite > 0 ? " (dette réduite)" : ""}`, type: "retour",
+      montant: refundCaisse, benefice_etabli: -marge,
       mode_paiement: venteLog.mode_paiement || "especes", vendeur_nom: monNom,
-      details_facture: { client: venteLog.details_facture?.client || "Client", article: resume, lignes: lignesRetour.filter(l => l.qte), total: refund, type: "Retour / Avoir" },
+      details_facture: { client: clientOrig || "Client", article: resume, lignes: lignesRetour.filter(l => l.qte), total: refund, dette_reduite: detteReduite, type: "Retour / Avoir" },
     });
     // Journal d'audit (action sensible : retour/avoir)
     try {
@@ -459,7 +482,11 @@ export default function App() {
       });
     } catch { /* ignore si table absente */ }
     await chargerDonnees();
-    setStatut(`✅ Retour enregistré : -${fmt(refund)} remboursé, stock réintégré.`);
+    const details = [
+      detteReduite > 0 ? `dette du client -${fmt(detteReduite)}` : "",
+      refundCaisse > 0 ? `-${fmt(refundCaisse)} remboursé en caisse` : "",
+    ].filter(Boolean).join(", ");
+    setStatut(`✅ Retour enregistré : ${details || `-${fmt(refund)}`}, stock réintégré.`);
   };
 
   // Trace cachée : enregistre une modification/suppression d'un mouvement

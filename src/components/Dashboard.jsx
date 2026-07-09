@@ -70,7 +70,8 @@ export default function Dashboard({ kpi, historique, credits, produits, estPatro
       const d = new Date(base); d.setDate(d.getDate() - i);
       const iso = d.toISOString().split("T")[0];
       const label = d.toLocaleDateString("fr-FR", { weekday: "short" }).slice(0, 2);
-      const ventes = historique.filter(h => h.date_iso === iso && h.type === "vente").reduce((s, h) => s + (h.montant || 0), 0);
+      const ventes = historique.filter(h => h.date_iso === iso && (h.type === "vente" || h.type === "retour"))
+        .reduce((s, h) => s + (h.type === "retour" ? -(h.montant || 0) : (h.montant || 0)), 0);
       jours.push({ label, value: ventes, color: iso === dateSel ? C.green : C.green + "99" });
     }
     return jours;
