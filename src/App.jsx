@@ -459,8 +459,10 @@ export default function App() {
         if (aDeduire <= 0) break;
         const d = Math.min(aDeduire, f.reste_a_payer);
         const nouveau = f.reste_a_payer - d;
+        // Retour = la vente rétrécit : on réduit aussi le total de la fiche,
+        // pour que la barre « Remboursé % » (avance/total) reste juste.
         if (nouveau === 0) await supabase.from("credits").delete().eq("id", f.id);
-        else await supabase.from("credits").update({ reste_a_payer: nouveau }).eq("id", f.id);
+        else await supabase.from("credits").update({ reste_a_payer: nouveau, total: Math.max(0, (f.total || 0) - d) }).eq("id", f.id);
         aDeduire -= d;
         detteReduite += d;
       }
