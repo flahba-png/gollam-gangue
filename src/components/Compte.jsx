@@ -10,6 +10,17 @@ export default function Compte({ email, onClose, onLogout, onStatut, onExport, o
   devise = "XOF", onDevise,
   boutiques = [], boutiqueActive, vueGlobale, proprietaireId, estPatron, onSelectBoutique, onGlobale, onBoutiqueCreated, onBoutiqueUpdated }) {
   const [logoEnCours, setLogoEnCours] = useState(false);
+  // Mentions légales des factures (RCCM + compte contribuable)
+  const [rccm, setRccm] = useState(boutiqueActive?.rccm || "");
+  const [ncc, setNcc] = useState(boutiqueActive?.ncc || "");
+
+  const sauverMentions = async () => {
+    if (!boutiqueActive) return;
+    const { error } = await supabase.from("boutiques").update({ rccm: rccm.trim() || null, ncc: ncc.trim() || null }).eq("id", boutiqueActive.id);
+    if (error) { onStatut("⚠️ Mise à jour de la base requise (migration 36) pour enregistrer le RCCM/NCC."); return; }
+    onBoutiqueUpdated && onBoutiqueUpdated({ ...boutiqueActive, rccm: rccm.trim() || null, ncc: ncc.trim() || null });
+    onStatut("✅ Mentions légales enregistrées (visibles sur les factures).");
+  };
 
   // Logo de la boutique pour ses reçus/factures : on redimensionne avant de stocker
   const changerLogo = (file) => {
@@ -120,6 +131,22 @@ export default function Compte({ email, onClose, onLogout, onStatut, onExport, o
                       style={{ padding: "7px 12px", background: C.red + "18", color: C.red, border: `1px solid ${C.red}44`, borderRadius: 6, fontSize: 12, cursor: "pointer" }}>Retirer</button>
                   )}
                 </div>
+              </div>
+            )}
+
+            {/* MENTIONS LÉGALES FACTURES (RCCM + compte contribuable) */}
+            {estPatron && !vueGlobale && boutiqueActive && (
+              <div style={{ marginTop: 10, background: C.surface2, borderRadius: 8, border: `1px solid ${C.border}`, padding: 10 }}>
+                <div style={{ color: C.text, fontSize: 12, fontWeight: "bold" }}>🧾 Mentions légales (factures)</div>
+                <div style={{ color: C.muted, fontSize: 10, marginBottom: 8 }}>RCCM et compte contribuable, imprimés sur tes factures et exports comptables.</div>
+                <input value={rccm} onChange={e => setRccm(e.target.value)} placeholder="N° RCCM (ex: CI-ABJ-2026-A-12345)"
+                  style={{ width: "100%", boxSizing: "border-box", padding: "9px 12px", marginBottom: 6, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, color: C.text, fontSize: 13 }} />
+                <input value={ncc} onChange={e => setNcc(e.target.value)} placeholder="N° compte contribuable (NCC)"
+                  style={{ width: "100%", boxSizing: "border-box", padding: "9px 12px", marginBottom: 8, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, color: C.text, fontSize: 13 }} />
+                <button onClick={sauverMentions}
+                  style={{ width: "100%", padding: "8px 0", background: C.green + "18", color: C.green, border: `1px solid ${C.green}44`, borderRadius: 6, fontSize: 12, fontWeight: "bold", cursor: "pointer" }}>
+                  Enregistrer les mentions
+                </button>
               </div>
             )}
           </div>

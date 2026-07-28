@@ -60,6 +60,9 @@ alter table produits add column if not exists prix_demi_gros integer default 0;
 alter table produits add column if not exists prix_gros integer default 0;
 alter table produits add column if not exists seuil_demi_gros integer default 0;
 alter table produits add column if not exists seuil_gros integer default 0;
+-- Mentions légales factures : RCCM + compte contribuable (migration 36)
+alter table boutiques add column if not exists rccm text;
+alter table boutiques add column if not exists ncc text;
 
 -- ========== HISTORIQUE ==========
 create table if not exists historique (

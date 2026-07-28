@@ -61,7 +61,8 @@ export const imprimerDocument = (doc, boutique) => {
     <div class="top">
       <div>${boutique?.logo ? `<img src="${boutique.logo}" alt="logo" style="max-width:140px;max-height:64px;object-fit:contain;float:left;margin-right:12px" />` : `<div class="logo">${(boutique?.nom || "G").charAt(0).toUpperCase()}</div>`}
         <div class="bn">${boutique?.nom || "Ma Boutique"}</div>
-        <div class="bv">${boutique?.ville || "Côte d'Ivoire"}</div></div>
+        <div class="bv">${boutique?.ville || "Côte d'Ivoire"}</div>
+        ${boutique?.rccm || boutique?.ncc ? `<div class="bv">${boutique?.rccm ? `RCCM : ${boutique.rccm}` : ""}${boutique?.rccm && boutique?.ncc ? " · " : ""}${boutique?.ncc ? `NCC : ${boutique.ncc}` : ""}</div>` : ""}</div>
       <div class="doc"><div class="t">${titre}</div><div class="n">N° ${doc.numero || "—"}<br>Date : ${doc.date || today()}
         ${doc.type === "devis" && doc.validite ? `<br>Valable jusqu'au ${doc.validite}` : ""}</div></div>
     </div>
@@ -75,7 +76,7 @@ export const imprimerDocument = (doc, boutique) => {
     ${totaux}
     ${doc.notes ? `<div class="notes"><b>Notes :</b> ${doc.notes}</div>` : ""}
     ${doc.type === "devis" ? '<div class="notes">Ce devis est valable sous réserve de disponibilité des articles. Bon pour accord : __________</div>' : ""}
-    <div class="foot">Merci pour votre confiance — ${boutique?.nom || "Gollam"}</div>
+    <div class="foot">Merci pour votre confiance — ${boutique?.nom || "Gollam"}${boutique?.rccm ? ` · RCCM ${boutique.rccm}` : ""}${boutique?.ncc ? ` · NCC ${boutique.ncc}` : ""}</div>
   </body></html>`);
   w.document.close();
   setTimeout(() => { w.focus(); w.print(); }, 400);

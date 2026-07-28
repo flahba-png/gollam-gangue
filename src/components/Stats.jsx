@@ -3,6 +3,8 @@ import { C, fmt, todayISO } from "../theme";
 import { t } from "../i18n";
 import { supabase } from "../supabase";
 import { ventesParProduit, stocksDormants, caMensuel, exporterAnalyseCSV, exporterAnalysePDF, exporterJournalComptable } from "../analytics";
+import { exporterSYSCOHADA } from "../compta";
+import { imprimerRapportMensuel, envoyerRapportWhatsApp } from "../rapport";
 
 const Row = ({ label, value, color, bold }) => (
   <div style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", fontSize: 13 }}>
@@ -29,7 +31,7 @@ const BarChart = ({ data, label }) => {
   );
 };
 
-export default function Stats({ kpi, historique, produits, boutique, boutiqueActive, vueGlobale, onRefresh }) {
+export default function Stats({ kpi, historique, produits, credits = [], boutique, boutiqueActive, vueGlobale, onRefresh }) {
   const [tauxEdit, setTauxEdit] = useState(String(boutiqueActive?.taux_tva ?? 0));
   const taux = parseFloat(boutiqueActive?.taux_tva) || 0;
 
@@ -119,9 +121,27 @@ export default function Stats({ kpi, historique, produits, boutique, boutiqueAct
 
       {/* EXPORT COMPTABLE : journal de tous les mouvements pour un comptable */}
       <button onClick={() => exporterJournalComptable(historique, boutique, moisISO)}
-        style={{ width: "100%", padding: "10px 0", marginBottom: 12, background: C.blue + "18", color: C.blue, border: `1px solid ${C.blue}44`, borderRadius: 8, fontSize: 12, fontWeight: "bold", cursor: "pointer" }}>
+        style={{ width: "100%", padding: "10px 0", marginBottom: 8, background: C.blue + "18", color: C.blue, border: `1px solid ${C.blue}44`, borderRadius: 8, fontSize: 12, fontWeight: "bold", cursor: "pointer" }}>
         🧮 Export comptable du mois (journal détaillé)
       </button>
+
+      {/* EXPORT SYSCOHADA : écritures en partie double + balance, pour le comptable */}
+      <button onClick={() => exporterSYSCOHADA(historique, boutique, moisISO)}
+        style={{ width: "100%", padding: "10px 0", marginBottom: 8, background: C.purple + "18", color: C.purple, border: `1px solid ${C.purple}44`, borderRadius: 8, fontSize: 12, fontWeight: "bold", cursor: "pointer" }}>
+        📚 Export SYSCOHADA du mois (journal + balance)
+      </button>
+
+      {/* RAPPORT MENSUEL DU PATRON : PDF une page + envoi WhatsApp */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+        <button onClick={() => imprimerRapportMensuel(historique, credits, boutique, moisISO)}
+          style={{ flex: 1.4, padding: "10px 0", background: C.yellow + "18", color: C.yellow, border: `1px solid ${C.yellow}44`, borderRadius: 8, fontSize: 12, fontWeight: "bold", cursor: "pointer" }}>
+          📊 Rapport mensuel (PDF)
+        </button>
+        <button onClick={() => envoyerRapportWhatsApp(historique, credits, boutique, moisISO)}
+          style={{ flex: 1, padding: "10px 0", background: "#25D36618", color: "#25D366", border: "1px solid #25D36644", borderRadius: 8, fontSize: 12, fontWeight: "bold", cursor: "pointer" }}>
+          💬 WhatsApp
+        </button>
+      </div>
 
       {/* CA MENSUEL */}
       <div style={{ background: C.surface, borderRadius: 8, border: `1px solid ${C.border}`, padding: 14, marginBottom: 12 }}>

@@ -83,11 +83,21 @@ export default function Documents({ produits, boutiqueActive, boutique, credits 
   const tvaF = Math.round(ht * tauxTva / 100);
   const ttc = ht + tvaF;
 
+  // Numérotation conforme : séquence continue par type, jamais réutilisée
+  // (même après suppression), avec l'année. Ex : FA-2026-0012.
+  const prochainNumero = async (t) => {
+    const { data } = await supabase.from("documents").select("numero").eq("boutique_id", boutiqueActive.id).eq("type", t);
+    const max = (data || []).reduce((m, d) => {
+      const n = parseInt(String(d.numero || "").match(/(\d+)\s*$/)?.[1] || "0", 10);
+      return n > m ? n : m;
+    }, 0);
+    return `${PREFIX[t]}-${new Date().getFullYear()}-${String(max + 1).padStart(4, "0")}`;
+  };
+
   const enregistrer = async () => {
     if (lignes.length === 0) { onStatut("⚠️ Ajoute au moins une ligne."); return; }
     setEnCours(true);
-    const { count } = await supabase.from("documents").select("*", { count: "exact", head: true }).eq("boutique_id", boutiqueActive.id).eq("type", type);
-    const numero = `${PREFIX[type]}-${String((count || 0) + 1).padStart(4, "0")}`;
+    const numero = await prochainNumero(type);
     const { data } = await supabase.from("documents").insert({
       boutique_id: boutiqueActive.id, type, numero,
       client: client.trim() || "Client", client_phone: clientPhone.trim(),
@@ -110,8 +120,7 @@ export default function Documents({ produits, boutiqueActive, boutique, credits 
 
   // Transforme un document en un autre type (devis→facture/bon, bon→facture, facture→bon…)
   const convertir = async (doc, nouveauType) => {
-    const { count } = await supabase.from("documents").select("*", { count: "exact", head: true }).eq("boutique_id", boutiqueActive.id).eq("type", nouveauType);
-    const numero = `${PREFIX[nouveauType]}-${String((count || 0) + 1).padStart(4, "0")}`;
+    const numero = await prochainNumero(nouveauType);
     const statutInit = nouveauType === "facture" ? "impayee" : nouveauType === "bon_livraison" ? "a_livrer" : "en_attente";
     await supabase.from("documents").insert({
       boutique_id: boutiqueActive.id, type: nouveauType, numero,
@@ -128,6 +137,12 @@ export default function Documents({ produits, boutiqueActive, boutique, credits 
   };
 
   const supprimer = async (doc) => {
+    // Conformité fiscale : une facture émise ne se supprime pas (numérotation
+    // ininterrompue) — elle s'annule par un avoir ou se marque annulée.
+    if (doc.type === "facture") {
+      onStatut("⚠️ Une facture ne peut pas être supprimée (numérotation légale). Marque-la annulée ou fais un avoir.");
+      return;
+    }
     if (!confirm(`Supprimer ${doc.numero} ?`)) return;
     await supabase.from("documents").delete().eq("id", doc.id);
     charger();

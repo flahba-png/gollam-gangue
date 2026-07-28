@@ -974,7 +974,7 @@ export default function App() {
             <Inventaire produits={produits} boutiqueActive={boutiqueActive} monNom={monNom} onRefresh={chargerDonnees} onStatut={setStatut} />
           )
         )}
-        {onglet === "stats" && estPatron && <Stats kpi={kpi} historique={historique} produits={produits} boutique={boutique} boutiqueActive={boutiqueActive} vueGlobale={vueGlobale} onRefresh={chargerDonnees} />}
+        {onglet === "stats" && estPatron && <Stats kpi={kpi} historique={historique} produits={produits} credits={credits} boutique={boutique} boutiqueActive={boutiqueActive} vueGlobale={vueGlobale} onRefresh={chargerDonnees} />}
         {onglet === "bons_commande" && estPatron && (
           vueGlobale ? <div style={{ padding: "0 12px" }}><div style={{ background: C.surface, borderRadius: 8, border: `1px solid ${C.border}`, padding: 20, textAlign: "center", color: C.muted, fontSize: 13 }}>🌍 Choisis une boutique précise pour gérer ses bons de commande.</div></div>
             : <BonsCommande produits={produits} fournisseurs={fournisseurs} boutiqueId={boutiqueActive?.id} monNom={monNom} onRefresh={chargerDonnees} onStatut={setStatut} />
