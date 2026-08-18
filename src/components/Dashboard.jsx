@@ -34,7 +34,7 @@ const BarChart = ({ data, label }) => {
   );
 };
 
-export default function Dashboard({ kpi, historique, credits, produits, estPatron = true, onImprimer, onWhatsApp, onVoirCredits, cameras = [], peutGererCameras = false, onSurveillance }) {
+export default function Dashboard({ kpi, historique, credits, produits, dettesFournisseurs = 0, estPatron = true, onImprimer, onWhatsApp, onVoirCredits, cameras = [], peutGererCameras = false, onSurveillance }) {
   const alertesStock = produits.filter(p => (p.stock || 0) <= 2);
   const creancesEnRetard = useMemo(
     () => credits.filter(c => (c.reste_a_payer || 0) > 0 && ageEnJours(c) >= SEUIL_RETARD),
@@ -145,7 +145,23 @@ export default function Dashboard({ kpi, historique, credits, produits, estPatro
         {estPatron && <StatCard label={t("depenses")} value={kpiJour.depenses} color={C.red} sub={estAujourdhui ? "du jour" : "ce jour-là"} />}
         {estPatron && <StatCard label={t("benefice_net")} value={kpiJour.benefice} color={kpiJour.benefice >= 0 ? C.green : C.red} sub={estAujourdhui ? "du jour" : "ce jour-là"} />}
         <StatCard label={t("creances")} value={kpi.dettes} color={C.yellow} sub={`cumul · ${credits.length} client(s)`} />
+        {estPatron && dettesFournisseurs > 0 && (
+          <StatCard label="Dettes fournisseurs" value={dettesFournisseurs} color={C.red} sub="à payer" />
+        )}
       </div>
+
+      {/* TRÉSORERIE NETTE : ce qu'on me doit − ce que je dois */}
+      {estPatron && (kpi.dettes > 0 || dettesFournisseurs > 0) && (
+        <div style={{ background: C.surface, borderRadius: 8, border: `1px solid ${C.border}`, padding: 12, marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <div style={{ fontSize: 10, color: C.muted, fontWeight: "bold", letterSpacing: 0.5 }}>⚖️ POSITION NETTE</div>
+            <div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>créances {fmt(kpi.dettes)} − dettes {fmt(dettesFournisseurs)}</div>
+          </div>
+          <div style={{ fontSize: 18, fontWeight: "bold", color: (kpi.dettes - dettesFournisseurs) >= 0 ? C.green : C.red }}>
+            {fmt(kpi.dettes - dettesFournisseurs)}
+          </div>
+        </div>
+      )}
 
       {/* RÉPARTITION CAISSE PAR MODE DE PAIEMENT */}
       <div style={{ background: C.surface, borderRadius: 8, border: `1px solid ${C.border}`, padding: 14, marginBottom: 12 }}>

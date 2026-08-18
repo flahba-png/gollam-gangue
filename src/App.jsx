@@ -18,6 +18,7 @@ const Stats = lazy(() => import("./components/Stats"));
 const Transferts = lazy(() => import("./components/Transferts"));
 const Equipe = lazy(() => import("./components/Equipe"));
 const Fournisseurs = lazy(() => import("./components/Fournisseurs"));
+const DettesFournisseurs = lazy(() => import("./components/DettesFournisseurs"));
 const Cloture = lazy(() => import("./components/Cloture"));
 const Inventaire = lazy(() => import("./components/Inventaire"));
 const Admin = lazy(() => import("./components/Admin"));
@@ -379,6 +380,15 @@ export default function App() {
   }, [boutiqueActive, vueGlobale]);
   useEffect(() => { chargerPromos(); }, [chargerPromos]);
 
+  // Total dû aux fournisseurs (position nette au Dashboard)
+  const [dettesFournisseurs, setDettesFournisseurs] = useState(0);
+  useEffect(() => {
+    if (!boutiqueActive || vueGlobale) { setDettesFournisseurs(0); return; }
+    supabase.from("dettes_fournisseurs").select("reste_a_payer").eq("boutique_id", boutiqueActive.id).gt("reste_a_payer", 0)
+      .then(({ data }) => setDettesFournisseurs((data || []).reduce((s, d) => s + (d.reste_a_payer || 0), 0)))
+      .catch(() => setDettesFournisseurs(0));
+  }, [boutiqueActive, vueGlobale, onglet]);
+
   // Map produit(lower) -> % de remise (promo active la plus avantageuse)
   const promosActives = useMemo(() => {
     const t = todayISO();
@@ -708,6 +718,7 @@ export default function App() {
     { id: "stock", label: "📦", title: t("stock") },
     { id: "fournisseurs", label: "🚚", title: t("reassort"), badge: produits.filter(p => (p.stock || 0) <= (p.seuil_alerte ?? 2)).length },
     { id: "bons_commande", label: "📥", title: "Bons de commande" },
+    { id: "dettes_fourn", label: "💸", title: "Dettes fournisseurs" },
     { id: "promotions", label: "🎉", title: "Promotions" },
     { id: "credits", label: "📒", title: t("credits"), badge: credits.length },
     { id: "documents", label: "🧾", title: t("documents") },
@@ -876,7 +887,7 @@ export default function App() {
 
       <div key={onglet} className="tab-content" style={{ paddingTop: 12, paddingBottom: "calc(70px + env(safe-area-inset-bottom))" }}>
        <Suspense fallback={<div style={{ padding: 40, textAlign: "center", color: C.muted, fontSize: 13 }}>⏳ Chargement…</div>}>
-        {onglet === "dashboard" && <Dashboard kpi={kpi} historique={historique} credits={credits} produits={produits} estPatron={peutVoirBenefice} onImprimer={h => imprimerFacture(h, boutique)} onWhatsApp={h => envoyerRecuWhatsApp(h, boutique)} onVoirCredits={() => setOnglet("credits")} cameras={(!vueGlobale && boutiqueActive?.cameras) || []} peutGererCameras={estPatron && !vueGlobale} onSurveillance={() => setSurveillanceOuverte(true)} />}
+        {onglet === "dashboard" && <Dashboard kpi={kpi} historique={historique} credits={credits} produits={produits} dettesFournisseurs={dettesFournisseurs} estPatron={peutVoirBenefice} onImprimer={h => imprimerFacture(h, boutique)} onWhatsApp={h => envoyerRecuWhatsApp(h, boutique)} onVoirCredits={() => setOnglet("credits")} cameras={(!vueGlobale && boutiqueActive?.cameras) || []} peutGererCameras={estPatron && !vueGlobale} onSurveillance={() => setSurveillanceOuverte(true)} />}
         {onglet === "saisie" && (
           <div style={{ padding: "0 12px 12px" }}>
             {vueGlobale ? (
@@ -910,6 +921,17 @@ export default function App() {
             </div>
           ) : (
             <Fournisseurs produits={produits} boutiqueActive={boutiqueActive} onRefresh={chargerDonnees} onStatut={setStatut} boutique={boutique} />
+          )
+        )}
+        {onglet === "dettes_fourn" && estPatron && (
+          vueGlobale ? (
+            <div style={{ padding: "0 12px" }}>
+              <div style={{ background: C.surface, borderRadius: 8, border: `1px solid ${C.border}`, padding: 20, textAlign: "center", color: C.muted, fontSize: 13 }}>
+                🌍 Choisis une boutique précise pour voir ses dettes fournisseurs.
+              </div>
+            </div>
+          ) : (
+            <DettesFournisseurs boutiqueId={boutiqueActive?.id} boutique={boutiqueActive} fournisseurs={fournisseurs} monNom={monNom} onStatut={setStatut} />
           )
         )}
         {onglet === "credits" && <Credits credits={credits} kpi={kpi} boutiqueId={boutiqueActive?.id} onRefresh={chargerDonnees} onStatut={setStatut} boutique={boutique} />}
