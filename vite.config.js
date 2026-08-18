@@ -5,8 +5,9 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 // https://vite.dev/config/
 export default defineConfig({
-  // Tests : environnement jsdom pour disposer de localStorage (couche hors-ligne)
-  test: { environment: 'jsdom' },
+  // Tests : jsdom pour localStorage (couche hors-ligne) ; pool "threads" car le
+  // lancement de processus séparés échoue par manque de ressources sur cette machine
+  test: { environment: 'jsdom', pool: 'threads' },
   plugins: [
     react(),
     VitePWA({
