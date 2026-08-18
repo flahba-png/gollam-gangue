@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from "react";
-import { C, fmt, appeler, heure, todayISO } from "../theme";
+import { C, fmt, appeler, heure, todayISO, envoyerWhatsApp } from "../theme";
 import { supabase } from "../supabase";
 import { relancerWhatsApp } from "../relance";
 import { msgErreur } from "../erreurs";
@@ -209,6 +209,21 @@ export default function SuiviClient({ credits, historique, boutiqueId, boutique,
 
   const filtres = clients.filter(c => !archives.includes(norm(c.nom)) && (!recherche || norm(c.nom).includes(norm(recherche))));
 
+  // Clients endormis : pas d'achat depuis 60 jours (et joignables) → à relancer
+  const SEUIL_INACTIF_JOURS = 60;
+  const inactifs = clients.filter(c =>
+    !archives.includes(norm(c.nom)) && c.phone && c.dernierTs > 0 &&
+    (Date.now() - c.dernierTs) > SEUIL_INACTIF_JOURS * 86400000
+  );
+  const [relanceOuvert, setRelanceOuvert] = useState(false);
+  const [relances, setRelances] = useState({}); // nom -> true (envoyé)
+
+  const relancerInactif = (c) => {
+    const prenom = (c.nom || "").split(" ")[0];
+    envoyerWhatsApp(c.phone, `Bonjour ${prenom} ! 😊 Ça fait un moment qu'on ne t'a pas vu chez ${boutique?.nom || "nous"}. De nouveaux articles sont arrivés, passe nous voir quand tu veux !`);
+    setRelances(prev => ({ ...prev, [c.nom]: true }));
+  };
+
   // Notes du client sélectionné
   const chargerNotes = useCallback(async () => {
     if (!clientSel || !boutiqueId) { setNotes([]); return; }
@@ -331,6 +346,30 @@ export default function SuiviClient({ credits, historique, boutiqueId, boutique,
           <button onClick={() => setAjoutOuvert(o => !o)} title="Nouveau client"
             style={{ flexShrink: 0, padding: "0 14px", background: C.green, color: C.bg, border: "none", borderRadius: 10, fontSize: 18, fontWeight: "bold", cursor: "pointer" }}>＋</button>
         </div>
+
+        {/* CLIENTS ENDORMIS : à faire revenir */}
+        {inactifs.length > 0 && (
+          <div style={{ background: C.surface, borderRadius: 10, border: `1px solid ${C.yellow}55`, padding: 12, marginBottom: 10 }}>
+            <div onClick={() => setRelanceOuvert(o => !o)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}>
+              <span style={{ color: C.yellow, fontSize: 12, fontWeight: "bold" }}>😴 {inactifs.length} client(s) sans achat depuis {SEUIL_INACTIF_JOURS} j</span>
+              <span style={{ color: C.muted, fontSize: 11, fontWeight: "bold" }}>{relanceOuvert ? "▲" : "Faire revenir ▼"}</span>
+            </div>
+            {relanceOuvert && inactifs.map(c => (
+              <div key={c.nom} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 0", borderTop: `1px solid ${C.border}`, marginTop: 6 }}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ color: C.text, fontSize: 13, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.nom}</div>
+                  <div style={{ color: C.muted, fontSize: 10 }}>Dernier achat : {jourLabel(new Date(c.dernierTs).toISOString())}</div>
+                </div>
+                {relances[c.nom]
+                  ? <span style={{ color: C.green, fontSize: 12, fontWeight: "bold", flexShrink: 0 }}>✅ Relancé</span>
+                  : <button onClick={() => relancerInactif(c)}
+                      style={{ flexShrink: 0, background: "#25D36622", color: "#25D366", border: "1px solid #25D36644", borderRadius: 8, padding: "6px 12px", fontSize: 12, fontWeight: "bold", cursor: "pointer" }}>
+                      💬 Relancer
+                    </button>}
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* FORMULAIRE NOUVEAU CLIENT */}
         {ajoutOuvert && (

@@ -981,7 +981,7 @@ export default function App() {
         )}
         {onglet === "promotions" && estPatron && (
           vueGlobale ? <div style={{ padding: "0 12px" }}><div style={{ background: C.surface, borderRadius: 8, border: `1px solid ${C.border}`, padding: 20, textAlign: "center", color: C.muted, fontSize: 13 }}>🌍 Choisis une boutique précise pour gérer ses promotions.</div></div>
-            : <Promotions produits={produits} boutiqueId={boutiqueActive?.id} monNom={monNom} onStatut={setStatut} onRefresh={chargerPromos} />
+            : <Promotions produits={produits} boutiqueId={boutiqueActive?.id} monNom={monNom} onStatut={setStatut} onRefresh={chargerPromos} clientsConnus={clientsConnus} boutique={boutiqueActive} />
         )}
         {onglet === "journal" && estPatron && <Journal boutiqueId={vueGlobale ? null : boutiqueActive?.id} />}
         {onglet === "admin" && estAdmin && <Admin onStatut={setStatut} />}

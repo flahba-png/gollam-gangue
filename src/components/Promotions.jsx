@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { C, todayISO } from "../theme";
+import { C, todayISO, envoyerWhatsApp } from "../theme";
+import { partagerAffiche } from "../affiche";
 import { supabase } from "../supabase";
 import ProduitSelect from "./ProduitSelect";
 import { msgErreur } from "../erreurs";
@@ -14,7 +15,7 @@ export const statutPromo = (p) => {
   return "active";
 };
 
-export default function Promotions({ produits, boutiqueId, monNom, onStatut, onRefresh }) {
+export default function Promotions({ produits, boutiqueId, monNom, onStatut, onRefresh, clientsConnus = [], boutique }) {
   const [promos, setPromos] = useState([]);
   const [creation, setCreation] = useState(false);
   const [debut, setDebut] = useState(todayISO());
@@ -23,6 +24,20 @@ export default function Promotions({ produits, boutiqueId, monNom, onStatut, onR
   const [notes, setNotes] = useState("");
   const [arts, setArts] = useState([]);   // noms d'articles ciblés
   const [enCours, setEnCours] = useState(false);
+  const [annonceId, setAnnonceId] = useState(null);  // promo dont le panneau d'annonce est ouvert
+  const [envoyes, setEnvoyes] = useState({});        // "promoId_nomClient" -> true
+
+  // Message d'annonce prêt à envoyer (personnalisé par client)
+  const texteAnnonce = (p, nomClient = "") => {
+    const dates = p.date_debut && p.date_fin ? ` jusqu'au ${p.date_fin.split("-").reverse().slice(0, 2).join("/")}` : "";
+    const articles = (p.produits || []).slice(0, 4).join(", ") + ((p.produits || []).length > 4 ? "…" : "");
+    return `${nomClient ? `Bonjour ${nomClient} ! ` : ""}🎉 PROMO chez ${boutique?.nom || "nous"} : *-${p.pourcentage}%* sur ${articles}${dates}. Passe vite avant la fin ! 🏃`;
+  };
+
+  const envoyerA = (p, client) => {
+    envoyerWhatsApp(client.phone, texteAnnonce(p, client.nom.split(" ")[0]));
+    setEnvoyes(prev => ({ ...prev, [`${p.id}_${client.nom}`]: true }));
+  };
 
   const charger = useCallback(async () => {
     if (!boutiqueId) { setPromos([]); return; }
@@ -117,6 +132,42 @@ export default function Promotions({ produits, boutiqueId, monNom, onStatut, onR
                 <div><button onClick={() => supprimer(p.id)} aria-label="Supprimer la promotion" style={{ marginTop: 6, background: C.red + "18", color: C.red, border: `1px solid ${C.red}33`, borderRadius: 8, padding: "8px 12px", fontSize: 14, cursor: "pointer" }}>🗑️</button></div>
               </div>
             </div>
+
+            {/* CAMPAGNE : affiche à partager + annonce WhatsApp aux clients */}
+            {statutPromo(p) !== "expiree" && (
+              <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+                <button onClick={() => partagerAffiche(p, produits, boutique, onStatut)}
+                  style={{ flex: 1, padding: "8px 0", background: C.blue + "18", color: C.blue, border: `1px solid ${C.blue}44`, borderRadius: 8, fontSize: 12, fontWeight: "bold", cursor: "pointer" }}>
+                  🖼️ Affiche
+                </button>
+                <button onClick={() => setAnnonceId(annonceId === p.id ? null : p.id)}
+                  style={{ flex: 1.6, padding: "8px 0", background: "#25D36618", color: "#25D366", border: "1px solid #25D36644", borderRadius: 8, fontSize: 12, fontWeight: "bold", cursor: "pointer" }}>
+                  📢 Annoncer aux clients ({clientsConnus.filter(c => c.phone).length})
+                </button>
+              </div>
+            )}
+            {annonceId === p.id && (
+              <div style={{ background: C.surface2, borderRadius: 8, border: "1px solid #25D36644", padding: 10, marginTop: 8 }}>
+                <div style={{ fontSize: 10, color: C.muted, fontWeight: "bold", marginBottom: 6 }}>MESSAGE ENVOYÉ (personnalisé par client)</div>
+                <div style={{ background: C.surface, borderRadius: 8, padding: 10, fontSize: 12, color: C.text, marginBottom: 8, fontStyle: "italic" }}>
+                  {texteAnnonce(p, "Koffi")}
+                </div>
+                {clientsConnus.filter(c => c.phone).length === 0 && (
+                  <div style={{ color: C.muted, fontSize: 12, fontStyle: "italic" }}>Aucun client avec un numéro de téléphone. Ajoute les numéros dans Suivi Client.</div>
+                )}
+                {clientsConnus.filter(c => c.phone).map(cl => (
+                  <div key={cl.nom} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 0", borderBottom: `1px solid ${C.border}` }}>
+                    <span style={{ color: C.text, fontSize: 13 }}>{cl.nom}</span>
+                    {envoyes[`${p.id}_${cl.nom}`]
+                      ? <span style={{ color: C.green, fontSize: 12, fontWeight: "bold" }}>✅ Envoyé</span>
+                      : <button onClick={() => envoyerA(p, cl)}
+                          style={{ background: "#25D36622", color: "#25D366", border: "1px solid #25D36644", borderRadius: 8, padding: "6px 12px", fontSize: 12, fontWeight: "bold", cursor: "pointer" }}>
+                          💬 Envoyer
+                        </button>}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         ))}
       </div>
