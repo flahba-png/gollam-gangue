@@ -199,6 +199,11 @@ export default function Dashboard({ kpi, historique, credits, produits, estPatro
               <span>
                 <span style={{ color: C.muted, marginRight: 6 }}>{h.heure}</span>
                 <span style={{ color: C.text }}>{h.texte}</span>
+                {h.vendeur_nom && (
+                  <span style={{ color: h.type === "depense" ? C.red : C.muted, fontSize: 10, marginLeft: 6, fontWeight: h.type === "depense" ? "bold" : "normal" }}>
+                    👤 {h.vendeur_nom}
+                  </span>
+                )}
               </span>
               <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                 {h.type === "transfert" ? (

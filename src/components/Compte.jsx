@@ -10,16 +10,24 @@ export default function Compte({ email, onClose, onLogout, onStatut, onExport, o
   devise = "XOF", onDevise,
   boutiques = [], boutiqueActive, vueGlobale, proprietaireId, estPatron, onSelectBoutique, onGlobale, onBoutiqueCreated, onBoutiqueUpdated }) {
   const [logoEnCours, setLogoEnCours] = useState(false);
-  // Mentions légales des factures (RCCM + compte contribuable)
+  // Mentions légales des factures (RCCM, NCC, statut juridique, siège, paiement)
   const [rccm, setRccm] = useState(boutiqueActive?.rccm || "");
   const [ncc, setNcc] = useState(boutiqueActive?.ncc || "");
+  const [statutJur, setStatutJur] = useState(boutiqueActive?.statut_juridique || "");
+  const [siege, setSiege] = useState(boutiqueActive?.siege || "");
+  const [infosPaiement, setInfosPaiement] = useState(boutiqueActive?.infos_paiement || "");
 
   const sauverMentions = async () => {
     if (!boutiqueActive) return;
-    const { error } = await supabase.from("boutiques").update({ rccm: rccm.trim() || null, ncc: ncc.trim() || null }).eq("id", boutiqueActive.id);
-    if (error) { onStatut("⚠️ Mise à jour de la base requise (migration 36) pour enregistrer le RCCM/NCC."); return; }
-    onBoutiqueUpdated && onBoutiqueUpdated({ ...boutiqueActive, rccm: rccm.trim() || null, ncc: ncc.trim() || null });
-    onStatut("✅ Mentions légales enregistrées (visibles sur les factures).");
+    const patch = {
+      rccm: rccm.trim() || null, ncc: ncc.trim() || null,
+      statut_juridique: statutJur || null, siege: siege.trim() || null,
+      infos_paiement: infosPaiement.trim() || null,
+    };
+    const { error } = await supabase.from("boutiques").update(patch).eq("id", boutiqueActive.id);
+    if (error) { onStatut("⚠️ Mise à jour de la base requise (migrations 36-37) pour enregistrer ces informations."); return; }
+    onBoutiqueUpdated && onBoutiqueUpdated({ ...boutiqueActive, ...patch });
+    onStatut("✅ Informations enregistrées (visibles sur les factures).");
   };
 
   // Logo de la boutique pour ses reçus/factures : on redimensionne avant de stocker
@@ -138,10 +146,22 @@ export default function Compte({ email, onClose, onLogout, onStatut, onExport, o
             {estPatron && !vueGlobale && boutiqueActive && (
               <div style={{ marginTop: 10, background: C.surface2, borderRadius: 8, border: `1px solid ${C.border}`, padding: 10 }}>
                 <div style={{ color: C.text, fontSize: 12, fontWeight: "bold" }}>🧾 Mentions légales (factures)</div>
-                <div style={{ color: C.muted, fontSize: 10, marginBottom: 8 }}>RCCM et compte contribuable, imprimés sur tes factures et exports comptables.</div>
+                <div style={{ color: C.muted, fontSize: 10, marginBottom: 8 }}>Imprimées sur tes factures, devis et exports comptables. Tout est facultatif.</div>
                 <input value={rccm} onChange={e => setRccm(e.target.value)} placeholder="N° RCCM (ex: CI-ABJ-2026-A-12345)"
                   style={{ width: "100%", boxSizing: "border-box", padding: "9px 12px", marginBottom: 6, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, color: C.text, fontSize: 13 }} />
                 <input value={ncc} onChange={e => setNcc(e.target.value)} placeholder="N° compte contribuable (NCC)"
+                  style={{ width: "100%", boxSizing: "border-box", padding: "9px 12px", marginBottom: 6, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, color: C.text, fontSize: 13 }} />
+                <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+                  <select value={statutJur} onChange={e => setStatutJur(e.target.value)}
+                    style={{ flex: 1, padding: "9px 12px", background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, color: statutJur ? C.text : C.muted, fontSize: 13 }}>
+                    <option value="">Statut juridique —</option>
+                    {["EI", "EURL", "SARL", "SA", "SAS", "SASU", "GIE", "Coopérative"].map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                  <input value={siege} onChange={e => setSiege(e.target.value)} placeholder="Siège (ex: Daloa)"
+                    style={{ flex: 1, boxSizing: "border-box", padding: "9px 12px", background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, color: C.text, fontSize: 13 }} />
+                </div>
+                <input value={infosPaiement} onChange={e => setInfosPaiement(e.target.value)} placeholder="💳 Paiement (ex: Wave 07 69 69 14 15 · OM 05 xx)"
+                  title="Affiché sur les factures pour que tes clients sachent où payer"
                   style={{ width: "100%", boxSizing: "border-box", padding: "9px 12px", marginBottom: 8, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, color: C.text, fontSize: 13 }} />
                 <button onClick={sauverMentions}
                   style={{ width: "100%", padding: "8px 0", background: C.green + "18", color: C.green, border: `1px solid ${C.green}44`, borderRadius: 6, fontSize: 12, fontWeight: "bold", cursor: "pointer" }}>

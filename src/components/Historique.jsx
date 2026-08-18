@@ -106,7 +106,10 @@ export default function Historique({ historique, produits, boutiqueId, onRefresh
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 0", fontSize: 12 }}>
                 <div>
                   <div style={{ color: h.type === "retour" ? C.red : C.text }}>{h.texte}</div>
-                  <div style={{ color: C.muted, fontSize: 10, marginTop: 2 }}>{h.heure} · {h.date_iso}</div>
+                  <div style={{ color: C.muted, fontSize: 10, marginTop: 2 }}>
+                    {h.heure} · {h.date_iso}
+                    {h.vendeur_nom && <span style={{ color: h.type === "depense" ? C.red : C.muted, fontWeight: h.type === "depense" ? "bold" : "normal" }}> · 👤 {h.vendeur_nom}</span>}
+                  </div>
                 </div>
                 <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
                   {h.type === "transfert" ? (

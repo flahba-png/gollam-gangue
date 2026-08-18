@@ -63,6 +63,10 @@ alter table produits add column if not exists seuil_gros integer default 0;
 -- Mentions légales factures : RCCM + compte contribuable (migration 36)
 alter table boutiques add column if not exists rccm text;
 alter table boutiques add column if not exists ncc text;
+-- Identité complète facture : statut juridique, siège, coordonnées de paiement (migration 37)
+alter table boutiques add column if not exists statut_juridique text;
+alter table boutiques add column if not exists siege text;
+alter table boutiques add column if not exists infos_paiement text;
 
 -- ========== HISTORIQUE ==========
 create table if not exists historique (

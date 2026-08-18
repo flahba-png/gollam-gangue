@@ -60,8 +60,8 @@ export const imprimerDocument = (doc, boutique) => {
     </div>
     <div class="top">
       <div>${boutique?.logo ? `<img src="${boutique.logo}" alt="logo" style="max-width:140px;max-height:64px;object-fit:contain;float:left;margin-right:12px" />` : `<div class="logo">${(boutique?.nom || "G").charAt(0).toUpperCase()}</div>`}
-        <div class="bn">${boutique?.nom || "Ma Boutique"}</div>
-        <div class="bv">${boutique?.ville || "Côte d'Ivoire"}</div>
+        <div class="bn">${boutique?.nom || "Ma Boutique"}${boutique?.statut_juridique ? ` <span style="font-size:12px;color:#666;font-weight:normal">(${boutique.statut_juridique})</span>` : ""}</div>
+        <div class="bv">${boutique?.siege || boutique?.ville || "Côte d'Ivoire"}</div>
         ${boutique?.rccm || boutique?.ncc ? `<div class="bv">${boutique?.rccm ? `RCCM : ${boutique.rccm}` : ""}${boutique?.rccm && boutique?.ncc ? " · " : ""}${boutique?.ncc ? `NCC : ${boutique.ncc}` : ""}</div>` : ""}</div>
       <div class="doc"><div class="t">${titre}</div><div class="n">N° ${doc.numero || "—"}<br>Date : ${doc.date || today()}
         ${doc.type === "devis" && doc.validite ? `<br>Valable jusqu'au ${doc.validite}` : ""}</div></div>
@@ -74,6 +74,7 @@ export const imprimerDocument = (doc, boutique) => {
       ${avecPrix ? "<th style='text-align:right'>P.U.</th><th style='text-align:right'>Total</th>" : ""}</tr>
       ${lignesHTML}</table>
     ${totaux}
+    ${avecPrix && boutique?.infos_paiement ? `<div class="notes" style="background:#eefaf4;border:1px solid #bfe8d6"><b>💳 Modalités de paiement :</b> ${boutique.infos_paiement}</div>` : ""}
     ${doc.notes ? `<div class="notes"><b>Notes :</b> ${doc.notes}</div>` : ""}
     ${doc.type === "devis" ? '<div class="notes">Ce devis est valable sous réserve de disponibilité des articles. Bon pour accord : __________</div>' : ""}
     <div class="foot">Merci pour votre confiance — ${boutique?.nom || "Gollam"}${boutique?.rccm ? ` · RCCM ${boutique.rccm}` : ""}${boutique?.ncc ? ` · NCC ${boutique.ncc}` : ""}</div>
@@ -101,6 +102,7 @@ export const texteDocument = (doc, boutique) => {
     lignes.push(`TOTAL : ${fmt(doc.total_ttc)}`);
   }
   if (doc.type === "devis" && doc.validite) lignes.push(`Valable jusqu'au ${doc.validite}`);
+  if (avecPrix && boutique?.infos_paiement) lignes.push(`💳 Paiement : ${boutique.infos_paiement}`);
   return lignes.join("\n");
 };
 

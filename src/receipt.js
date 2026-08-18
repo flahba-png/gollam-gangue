@@ -44,6 +44,7 @@ export const genererTexteRecu = (log, boutique) => {
 
   if (info.reste > 0) {
     lignes.push(`⚠️ Reste à payer : *${fmt(info.reste)}*`);
+    if (boutique?.infos_paiement) lignes.push(`💳 Paiement : ${boutique.infos_paiement}`);
   } else {
     lignes.push(`✅ SOLDÉ`);
   }
@@ -99,6 +100,7 @@ export const imprimerFacture = (log, boutique) => {
     <div class="tot">TOTAL : ${fmt(info.total)}</div>
     <div class="tot" style="color:${info.reste > 0 ? '#000' : '#000'};font-size:11px">
       ${info.reste > 0 ? `RESTE DÛ : ${fmt(info.reste)}` : "✅ SOLDÉ"}</div>
+    ${boutique?.infos_paiement && (info.reste || 0) > 0 ? `<div class="f" style="font-weight:bold">💳 Paiement : ${boutique.infos_paiement}</div>` : ""}
     <div class="f">Merci pour votre confiance !</div>
   </body></html>`);
   w.document.close();
