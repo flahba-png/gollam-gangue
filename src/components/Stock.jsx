@@ -3,6 +3,9 @@ import { C, fmt } from "../theme";
 import { t } from "../i18n";
 import { supabase } from "../supabase";
 import Scanner from "./Scanner";
+import { compresserPhoto, partagerPubArticle } from "../affiche";
+import { estIndisponible } from "../fallback";
+import { msgErreur } from "../erreurs";
 const ImportStock = lazy(() => import("./ImportStock"));
 
 const TRIS = [
@@ -14,7 +17,7 @@ const TRIS = [
   { id: "prix", label: "Prix ↑" },
 ];
 
-export default function Stock({ produits, boutiqueId, onRefresh, fournisseurs = [], onTransfer, voirPrixAchat = true, peutModifier = true, onAudit, onStatut }) {
+export default function Stock({ produits, boutiqueId, boutique, onRefresh, fournisseurs = [], onTransfer, voirPrixAchat = true, peutModifier = true, onAudit, onStatut }) {
   const [recherche, setRecherche] = useState("");
   const [editId, setEditId] = useState(null);
   const [editData, setEditData] = useState({});
@@ -59,7 +62,8 @@ export default function Stock({ produits, boutiqueId, onRefresh, fournisseurs = 
     setEditId(p.id);
     setEditData({ nom: p.nom, categorie: p.categorie || "", prixAchat: p.prix_achat, prixVente: p.prix_vente, stock: p.stock, seuil: p.seuil_alerte ?? 2, fournisseurId: p.fournisseur_id || "", codeBarre: p.code_barre || "", refOem: p.reference_oem || "", compat: p.compatibilite || "", frais: p.frais_unitaire || 0, carton: p.unites_par_carton || 1,
       prixDemiGros: p.prix_demi_gros || "", prixGros: p.prix_gros || "",
-      seuilDemiGros: p.seuil_demi_gros ?? 3, seuilGros: p.seuil_gros ?? ((p.unites_par_carton || 0) > 1 ? p.unites_par_carton : "") });
+      seuilDemiGros: p.seuil_demi_gros ?? 3, seuilGros: p.seuil_gros ?? ((p.unites_par_carton || 0) > 1 ? p.unites_par_carton : ""),
+      photo: p.photo || "" });
   };
 
   const saveEdit = async () => {
@@ -82,8 +86,17 @@ export default function Stock({ produits, boutiqueId, onRefresh, fournisseurs = 
       prix_gros: parseInt(editData.prixGros) || 0,
       seuil_demi_gros: parseInt(editData.seuilDemiGros) || 0,
       seuil_gros: parseInt(editData.seuilGros) || 0,
+      photo: editData.photo || null,
     };
-    await supabase.from("produits").update(nouveau).eq("id", editId);
+    let { error } = await supabase.from("produits").update(nouveau).eq("id", editId);
+    if (error && estIndisponible(error)) {
+      // Base pas encore migrée : on réessaie sans les colonnes récentes
+      // (photo, tarifs gros) pour ne jamais bloquer la sauvegarde du produit.
+      const { photo, prix_demi_gros, prix_gros, seuil_demi_gros, seuil_gros, ...base } = nouveau;
+      ({ error } = await supabase.from("produits").update(base).eq("id", editId));
+      if (!error && (photo || prix_demi_gros || prix_gros)) onStatut && onStatut("⚠️ Produit enregistré, mais photo/tarifs gros nécessitent la mise à jour de la base (SUPABASE_TOUT_EN_UN.sql).");
+    }
+    if (error) { setSauvegarde(false); onStatut && onStatut(msgErreur(error, "L'enregistrement")); return; }
     if (onAudit) await onAudit({ table: "produits", cibleId: editId, action: "modification", ancien, nouveau });
     setEditId(null);
     setSauvegarde(false);
@@ -182,6 +195,28 @@ export default function Stock({ produits, boutiqueId, onRefresh, fournisseurs = 
                   <input type="number" value={editData.stock} onChange={e => setEditData(d => ({ ...d, stock: e.target.value }))}
                     style={inputStyle} placeholder="Stock" />
                 </div>
+                {/* Photo de l'article (catalogue + pub) */}
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <div style={{ width: 48, height: 48, borderRadius: 8, background: "var(--surface2)", border: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", flexShrink: 0 }}>
+                    {editData.photo
+                      ? <img src={editData.photo} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      : <span style={{ fontSize: 20 }}>📦</span>}
+                  </div>
+                  <label style={{ flex: 1, textAlign: "center", padding: "9px 0", background: C.blue + "18", color: C.blue, border: `1px solid ${C.blue}44`, borderRadius: 8, fontSize: 12, fontWeight: "bold", cursor: "pointer" }}>
+                    {editData.photo ? "📷 Changer la photo" : "📷 Photo de l'article"}
+                    <input type="file" accept="image/*" style={{ display: "none" }}
+                      onChange={async e => {
+                        const f = e.target.files[0]; e.target.value = "";
+                        if (!f) return;
+                        try { const d = await compresserPhoto(f); setEditData(x => ({ ...x, photo: d })); }
+                        catch { onStatut && onStatut("❌ Photo illisible."); }
+                      }} />
+                  </label>
+                  {editData.photo && (
+                    <button type="button" onClick={() => setEditData(x => ({ ...x, photo: "" }))}
+                      style={{ padding: "9px 12px", background: C.red + "18", color: C.red, border: `1px solid ${C.red}44`, borderRadius: 8, fontSize: 12, cursor: "pointer" }}>Retirer</button>
+                  )}
+                </div>
                 {/* Tarifs gros (facultatif) */}
                 <div style={{ background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 6, padding: 8 }}>
                   <div style={{ fontSize: 9, color: C.muted, fontWeight: "bold", letterSpacing: 0.5, marginBottom: 6 }}>💰 TARIFS GROS (facultatif)</div>
@@ -235,8 +270,11 @@ export default function Stock({ produits, boutiqueId, onRefresh, fournisseurs = 
                 </div>
               </div>
             ) : (
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+                {p.photo && (
+                  <img src={p.photo} alt="" style={{ width: 44, height: 44, borderRadius: 8, objectFit: "cover", border: `1px solid ${C.border}`, flexShrink: 0 }} />
+                )}
+                <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontWeight: "bold", color: C.text, fontSize: 13 }}>
                     {p.nom}
                     {p.categorie && <span style={{ marginLeft: 6, fontSize: 9, fontWeight: "bold", color: C.blue, background: C.blue + "18", border: `1px solid ${C.blue}33`, borderRadius: 8, padding: "1px 6px" }}>{p.categorie}</span>}
@@ -271,6 +309,11 @@ export default function Stock({ produits, boutiqueId, onRefresh, fournisseurs = 
                     {p.stock || 0} u
                   </span>
                   {peutModifier && <div style={{ display: "flex", gap: 4 }}>
+                    <button onClick={() => p.photo ? partagerPubArticle(p, boutique, onStatut) : (onStatut && onStatut("📷 Ajoute d'abord une photo à l'article (✏️) pour créer sa pub."))}
+                      aria-label="Créer la pub" title="Créer le visuel publicitaire de cet article"
+                      style={{ background: "#25D36618", color: "#25D366", border: "1px solid #25D36644", padding: "8px 12px", borderRadius: 8, fontSize: 14, cursor: "pointer" }}>
+                      📣
+                    </button>
                     <button onClick={() => startEdit(p)} aria-label="Modifier"
                       style={{ background: C.blue + "22", color: C.blue, border: `1px solid ${C.blue}44`, padding: "8px 12px", borderRadius: 8, fontSize: 14, cursor: "pointer" }}>
                       ✏️

@@ -129,6 +129,107 @@ export const partagerAffiche = async (promo, produits, boutique, onStatut) => {
   }
 };
 
+// Lit une photo prise au téléphone et la compresse (max 900px, JPEG ~70%)
+// pour un stockage léger en base. Renvoie une data URL.
+export const compresserPhoto = (file, max = 900) => new Promise((resolve, reject) => {
+  const lecteur = new FileReader();
+  lecteur.onerror = reject;
+  lecteur.onload = () => {
+    const img = new Image();
+    img.onerror = reject;
+    img.onload = () => {
+      const r = Math.min(1, max / Math.max(img.width, img.height));
+      const c = document.createElement("canvas");
+      c.width = Math.round(img.width * r);
+      c.height = Math.round(img.height * r);
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      resolve(c.toDataURL("image/jpeg", 0.7));
+    };
+    img.src = lecteur.result;
+  };
+  lecteur.readAsDataURL(file);
+});
+
+// Pub d'un article : sa photo en grand + prix + identité boutique (1080x1350)
+export const genererPubArticle = async (produit, boutique) => {
+  const W = 1080, H = 1350;
+  const c = document.createElement("canvas");
+  c.width = W; c.height = H;
+  const ctx = c.getContext("2d");
+  const cx = W / 2;
+
+  ctx.fillStyle = P.fond;
+  ctx.fillRect(0, 0, W, H);
+
+  // Photo de l'article : plein cadre en haut (recadrage type "cover")
+  const photo = await chargerImage(produit?.photo);
+  const zoneH = 760;
+  if (photo) {
+    const r = Math.max(W / photo.width, zoneH / photo.height);
+    const sw = W / r, sh = zoneH / r;
+    ctx.drawImage(photo, (photo.width - sw) / 2, (photo.height - sh) / 2, sw, sh, 0, 0, W, zoneH);
+  } else {
+    ctx.fillStyle = P.carte;
+    ctx.fillRect(0, 0, W, zoneH);
+    ctx.fillStyle = P.muted; ctx.font = "bold 46px Arial";
+    ctx.textAlign = "center";
+    ctx.fillText("📦", cx, zoneH / 2);
+  }
+  // Badge boutique en haut de la photo
+  ctx.fillStyle = "rgba(12,16,22,0.82)";
+  arrondi(ctx, 40, 40, ctx.measureText(boutique?.nom || "") ? Math.min(W - 80, 60 + (boutique?.nom || "Ma Boutique").length * 22) : 400, 76, 38); ctx.fill();
+  ctx.fillStyle = P.texte; ctx.font = "bold 36px Arial"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
+  ctx.fillText(tronque(ctx, boutique?.nom || "Ma Boutique", W - 160), 70, 80);
+  ctx.textBaseline = "alphabetic";
+
+  // Nom de l'article
+  ctx.textAlign = "center";
+  ctx.fillStyle = P.texte; ctx.font = "bold 56px Arial";
+  ctx.fillText(tronque(ctx, produit?.nom || "", W - 120), cx, zoneH + 110);
+  if (produit?.compatibilite) {
+    ctx.fillStyle = P.muted; ctx.font = "32px Arial";
+    ctx.fillText(tronque(ctx, `🚗 ${produit.compatibilite}`, W - 120), cx, zoneH + 165);
+  }
+
+  // Bande prix
+  ctx.fillStyle = P.bande;
+  ctx.fillRect(0, zoneH + 210, W, 170);
+  ctx.fillStyle = P.sombre; ctx.font = "bold 40px Arial";
+  ctx.fillText("PRIX", cx, zoneH + 275);
+  ctx.font = "bold 92px Arial";
+  ctx.fillText(fmt(produit?.prix_vente || 0), cx, zoneH + 360);
+
+  // Pied : contact + signature
+  ctx.fillStyle = P.carte;
+  ctx.fillRect(0, H - 150, W, 150);
+  ctx.fillStyle = P.texte; ctx.font = "bold 34px Arial";
+  const contact = boutique?.infos_paiement || `Disponible chez ${boutique?.nom || "nous"} · ${boutique?.ville || ""}`;
+  ctx.fillText(tronque(ctx, contact, W - 120), cx, H - 88);
+  ctx.fillStyle = P.muted; ctx.font = "26px Arial";
+  ctx.fillText("Géré avec Gollam", cx, H - 38);
+
+  return c;
+};
+
+export const partagerPubArticle = async (produit, boutique, onStatut) => {
+  try {
+    const canvas = await genererPubArticle(produit, boutique);
+    const blob = await new Promise(res => canvas.toBlob(res, "image/png"));
+    const fichier = new File([blob], `pub-${(produit?.nom || "article").replace(/\W+/g, "-")}.png`, { type: "image/png" });
+    if (navigator.canShare && navigator.canShare({ files: [fichier] })) {
+      await navigator.share({ files: [fichier], title: produit?.nom || "Article", text: `${produit?.nom} — ${fmt(produit?.prix_vente || 0)} chez ${boutique?.nom || ""}` });
+    } else {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = fichier.name; a.click();
+      URL.revokeObjectURL(url);
+      onStatut && onStatut("✅ Pub téléchargée — partage-la en statut WhatsApp !");
+    }
+  } catch (e) {
+    if (e?.name !== "AbortError") onStatut && onStatut("❌ Impossible de générer la pub. Réessaie.");
+  }
+};
+
 // --- petits utilitaires de dessin ---
 const frDate = (iso) => { try { const [, m, j] = iso.split("-"); return `${parseInt(j)}/${parseInt(m)}`; } catch { return iso; } };
 const arrondi = (ctx, x, y, w, h, r) => {

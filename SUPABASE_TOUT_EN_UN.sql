@@ -67,6 +67,8 @@ alter table boutiques add column if not exists ncc text;
 alter table boutiques add column if not exists statut_juridique text;
 alter table boutiques add column if not exists siege text;
 alter table boutiques add column if not exists infos_paiement text;
+-- Photo des produits pour catalogue + pub d'article (migration 38)
+alter table produits add column if not exists photo text;
 
 -- ========== HISTORIQUE ==========
 create table if not exists historique (

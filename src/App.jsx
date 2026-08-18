@@ -900,7 +900,7 @@ export default function App() {
           )
         )}
         {onglet === "historique" && <Historique historique={historique} produits={produits} boutiqueId={boutiqueActive?.id} onRefresh={chargerDonnees} onImprimer={h => imprimerFacture(h, boutique)} onWhatsApp={h => envoyerRecuWhatsApp(h, boutique)} onRetour={effectuerRetour} voirBenefice={peutVoirBenefice} peutRetourner={perms.vente_modifier || estPatron} peutModifier={perms.vente_modifier || estPatron} onSupprimer={supprimerMouvement} />}
-        {onglet === "stock" && <Stock produits={produits} boutiqueId={boutiqueActive?.id} onRefresh={chargerDonnees} fournisseurs={fournisseurs} onTransfer={!vueGlobale && boutiques.length > 1 ? () => setOnglet("transferts") : null} voirPrixAchat={perms.prix_achat_voir} peutModifier={perms.stock_modifier || estPatron} onAudit={loggerModif} onStatut={setStatut} />}
+        {onglet === "stock" && <Stock produits={produits} boutiqueId={boutiqueActive?.id} boutique={boutiqueActive} onRefresh={chargerDonnees} fournisseurs={fournisseurs} onTransfer={!vueGlobale && boutiques.length > 1 ? () => setOnglet("transferts") : null} voirPrixAchat={perms.prix_achat_voir} peutModifier={perms.stock_modifier || estPatron} onAudit={loggerModif} onStatut={setStatut} />}
         {onglet === "fournisseurs" && estPatron && (
           vueGlobale ? (
             <div style={{ padding: "0 12px" }}>
