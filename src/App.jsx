@@ -60,6 +60,14 @@ export default function App() {
   const [enLigne, setEnLigne] = useState(navigator.onLine);
   const [enAttente, setEnAttente] = useState(tailleOutbox());
   const [enAttenteFilet, setEnAttenteFilet] = useState(0); // clients/promos/bons gardés en local
+  // Grand écran (ordinateur) : mise en page « application de bureau »
+  const [estBureau, setEstBureau] = useState(() => typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches);
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1024px)");
+    const maj = (e) => setEstBureau(e.matches);
+    mq.addEventListener ? mq.addEventListener("change", maj) : mq.addListener(maj);
+    return () => { mq.removeEventListener ? mq.removeEventListener("change", maj) : mq.removeListener(maj); };
+  }, []);
   const [recovery, setRecovery] = useState(false); // l'utilisateur a cliqué un lien de réinitialisation
   const [nouveauMdp, setNouveauMdp] = useState("");
   const [voirMdp, setVoirMdp] = useState(false);
@@ -744,8 +752,10 @@ export default function App() {
 
   // Barre du bas = 4 principaux + bouton "Plus" (le reste dans un menu)
   const idsPrimaires = estPatron ? ["dashboard", "saisie", "stock", "credits"] : ["saisie", ...(perms.stock_modifier ? ["stock"] : []), ...(perms.credit_accorder ? ["credits"] : []), ...(perms.caisse_voir ? ["caisse"] : [])].slice(0, 4);
-  const primaires = idsPrimaires.map(id => tabs.find(t => t.id === id)).filter(Boolean);
-  const secondaires = tabs.filter(t => !idsPrimaires.includes(t.id));
+  // Sur ordinateur : la barre du bas devient une barre latérale et TOUS les
+  // onglets y tiennent (plus besoin du menu « ⋯ Plus »).
+  const primaires = estBureau ? tabs : idsPrimaires.map(id => tabs.find(t => t.id === id)).filter(Boolean);
+  const secondaires = estBureau ? [] : tabs.filter(t => !idsPrimaires.includes(t.id));
   const badgeSecondaire = secondaires.some(t => t.badge > 0);
 
   // Si le vendeur est sur un onglet interdit, le ramener sur "saisie"
@@ -755,9 +765,9 @@ export default function App() {
   }
 
   return (
-    <div style={{ background: C.bg, color: C.text, minHeight: "100vh", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", maxWidth: 480, margin: "0 auto" }}>
+    <div className="app-shell" style={{ background: C.bg, color: C.text, minHeight: "100vh", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", maxWidth: 480, margin: "0 auto" }}>
 
-      <div style={{ background: "rgba(22,28,36,0.82)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", padding: "12px 16px", paddingTop: "calc(12px + env(safe-area-inset-top))", borderBottom: `1px solid ${C.border}`, position: "sticky", top: 0, zIndex: 100, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <div className="app-header" style={{ background: "rgba(22,28,36,0.82)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", padding: "12px 16px", paddingTop: "calc(12px + env(safe-area-inset-top))", borderBottom: `1px solid ${C.border}`, position: "sticky", top: 0, zIndex: 100, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div>
           <div style={{ fontSize: 15, fontWeight: "bold", color: C.green }}>Gollam</div>
           <div style={{ fontSize: 10, color: C.muted }}>Gestion Commerciale</div>
@@ -862,7 +872,7 @@ export default function App() {
         const err = statut.startsWith("❌") || statut.startsWith("⚠️");
         const couleur = err ? C.red : C.green;
         return (
-          <div onClick={() => setStatut("")} style={{ position: "fixed", bottom: 74, left: "50%", transform: "translateX(-50%)", zIndex: 500, width: "calc(100% - 24px)", maxWidth: 456, animation: "fadeInUp 0.25s cubic-bezier(0.22,1,0.36,1)" }}>
+          <div onClick={() => setStatut("")} className="app-toast" style={{ position: "fixed", bottom: 74, left: "50%", transform: "translateX(-50%)", zIndex: 500, width: "calc(100% - 24px)", maxWidth: 456, animation: "fadeInUp 0.25s cubic-bezier(0.22,1,0.36,1)" }}>
             <div style={{ background: C.surface, border: `1px solid ${couleur}66`, borderLeft: `4px solid ${couleur}`, borderRadius: 10, padding: "11px 14px", fontSize: 13, color: C.text, boxShadow: "0 8px 28px rgba(0,0,0,0.45)", display: "flex", alignItems: "center", gap: 8 }}>
               <span style={{ flex: 1 }}>{statut}</span>
             </div>
@@ -885,7 +895,7 @@ export default function App() {
         );
       })()}
 
-      <div key={onglet} className="tab-content" style={{ paddingTop: 12, paddingBottom: "calc(70px + env(safe-area-inset-bottom))" }}>
+      <div key={onglet} className="tab-content app-content" style={{ paddingTop: 12, paddingBottom: "calc(70px + env(safe-area-inset-bottom))" }}>
        <Suspense fallback={<div style={{ padding: 40, textAlign: "center", color: C.muted, fontSize: 13 }}>⏳ Chargement…</div>}>
         {onglet === "dashboard" && <Dashboard kpi={kpi} historique={historique} credits={credits} produits={produits} dettesFournisseurs={dettesFournisseurs} estPatron={peutVoirBenefice} onImprimer={h => imprimerFacture(h, boutique)} onWhatsApp={h => envoyerRecuWhatsApp(h, boutique)} onVoirCredits={() => setOnglet("credits")} cameras={(!vueGlobale && boutiqueActive?.cameras) || []} peutGererCameras={estPatron && !vueGlobale} onSurveillance={() => setSurveillanceOuverte(true)} />}
         {onglet === "saisie" && (
@@ -1037,27 +1047,27 @@ export default function App() {
         </>
       )}
 
-      <div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 480, background: "rgba(22,28,36,0.9)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", borderTop: `1px solid ${C.border}`, display: "flex", boxSizing: "border-box", paddingBottom: "env(safe-area-inset-bottom)", boxShadow: "0 -4px 24px rgba(0,0,0,0.3)", zIndex: 152 }}>
+      <div className="app-nav" style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 480, background: "rgba(22,28,36,0.9)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", borderTop: `1px solid ${C.border}`, display: "flex", boxSizing: "border-box", paddingBottom: "env(safe-area-inset-bottom)", boxShadow: "0 -4px 24px rgba(0,0,0,0.3)", zIndex: 152 }}>
         {primaires.map(tab => {
           const actif = onglet === tab.id;
           return (
-            <button key={tab.id} onClick={() => { setOnglet(tab.id); setMenuPlus(false); }}
+            <button key={tab.id} onClick={() => { setOnglet(tab.id); setMenuPlus(false); }} className={`nav-btn${actif ? " nav-btn-actif" : ""}`}
               style={{ flex: 1, padding: "7px 2px 6px", background: "transparent", border: "none", cursor: "pointer", position: "relative" }}>
-              <div style={{ fontSize: 19, transform: actif ? "translateY(-1px) scale(1.12)" : "none", transition: "transform 0.2s cubic-bezier(0.22,1,0.36,1)", filter: actif ? "none" : "grayscale(0.3) opacity(0.85)" }}>{tab.label}</div>
-              <div style={{ fontSize: 9, color: actif ? C.green : C.muted, marginTop: 2, fontWeight: actif ? "bold" : "normal" }}>{tab.title}</div>
+              <div className="nav-ico" style={{ fontSize: 19, transform: actif ? "translateY(-1px) scale(1.12)" : "none", transition: "transform 0.2s cubic-bezier(0.22,1,0.36,1)", filter: actif ? "none" : "grayscale(0.3) opacity(0.85)" }}>{tab.label}</div>
+              <div className="nav-txt" style={{ fontSize: 9, color: actif ? C.green : C.muted, marginTop: 2, fontWeight: actif ? "bold" : "normal" }}>{tab.title}</div>
               {tab.badge > 0 && (
-                <div style={{ position: "absolute", top: 2, right: "50%", transform: "translateX(9px)", background: C.red, color: "#fff", fontSize: 8, minWidth: 14, height: 14, padding: "0 3px", borderRadius: 7, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "bold", animation: "popIn 0.2s ease" }}>{tab.badge}</div>
+                <div className="nav-badge" style={{ position: "absolute", top: 2, right: "50%", transform: "translateX(9px)", background: C.red, color: "#fff", fontSize: 8, minWidth: 14, height: 14, padding: "0 3px", borderRadius: 7, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "bold", animation: "popIn 0.2s ease" }}>{tab.badge}</div>
               )}
-              {actif && <div style={{ position: "absolute", bottom: 0, left: "25%", right: "25%", height: 2.5, background: C.green, borderRadius: 2, boxShadow: `0 0 8px ${C.green}` }} />}
+              {actif && <div className="nav-actif" style={{ position: "absolute", bottom: 0, left: "25%", right: "25%", height: 2.5, background: C.green, borderRadius: 2, boxShadow: `0 0 8px ${C.green}` }} />}
             </button>
           );
         })}
         {/* Bouton PLUS */}
         {secondaires.length > 0 && (
-          <button onClick={() => setMenuPlus(o => !o)}
+          <button onClick={() => setMenuPlus(o => !o)} className="nav-btn"
             style={{ flex: 1, padding: "7px 2px 6px", background: "transparent", border: "none", cursor: "pointer", position: "relative" }}>
-            <div style={{ fontSize: 19, filter: menuPlus ? "none" : "grayscale(0.3) opacity(0.85)" }}>{menuPlus ? "✖️" : "⋯"}</div>
-            <div style={{ fontSize: 9, color: menuPlus ? C.green : C.muted, marginTop: 2, fontWeight: menuPlus ? "bold" : "normal" }}>{t("plus")}</div>
+            <div className="nav-ico" style={{ fontSize: 19, filter: menuPlus ? "none" : "grayscale(0.3) opacity(0.85)" }}>{menuPlus ? "✖️" : "⋯"}</div>
+            <div className="nav-txt" style={{ fontSize: 9, color: menuPlus ? C.green : C.muted, marginTop: 2, fontWeight: menuPlus ? "bold" : "normal" }}>{t("plus")}</div>
             {badgeSecondaire && !menuPlus && (
               <div style={{ position: "absolute", top: 4, right: "50%", transform: "translateX(9px)", background: C.red, width: 8, height: 8, borderRadius: 4 }} />
             )}

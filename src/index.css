@@ -128,6 +128,76 @@ input:focus, select:focus, textarea:focus {
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
 
+/* ===== Mise en page ORDINATEUR (≥1024px) =====
+   La barre d'onglets du bas devient une barre latérale fixe et le contenu
+   occupe la largeur de l'écran : rendu d'une vraie application de bureau. */
+@media (min-width: 1024px) {
+  .app-shell {
+    max-width: none !important;
+    padding-left: 236px;
+  }
+  .app-header {
+    padding-left: 26px !important;
+    padding-right: 26px !important;
+  }
+  .app-content {
+    max-width: 1060px;
+    margin: 0 auto;
+    padding-bottom: 32px !important;
+  }
+
+  /* Barre du bas → barre latérale */
+  .app-nav {
+    left: 0 !important;
+    top: 0;
+    bottom: 0;
+    width: 236px !important;
+    max-width: 236px !important;
+    transform: none !important;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    gap: 2px;
+    padding: 18px 12px !important;
+    overflow-y: auto;
+    background: var(--surface) !important;
+    border-top: none !important;
+    border-right: 1px solid var(--border);
+    box-shadow: none !important;
+  }
+  .nav-btn {
+    flex: none !important;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 11px 14px !important;
+    border-radius: 10px;
+    text-align: left;
+  }
+  .nav-btn:not(:disabled):hover { background: var(--surface2) !important; filter: none; }
+  .nav-btn-actif { background: rgba(31, 208, 138, 0.14) !important; }
+  .nav-ico { font-size: 20px !important; transform: none !important; filter: none !important; }
+  .nav-txt { font-size: 13px !important; margin-top: 0 !important; white-space: nowrap; }
+  .nav-badge {
+    position: static !important;
+    transform: none !important;
+    margin-left: auto;
+    font-size: 10px !important;
+    min-width: 18px !important;
+    height: 18px !important;
+    border-radius: 9px !important;
+  }
+  .nav-actif { display: none; } /* remplacé par le fond de l'onglet actif */
+
+  /* Notifications : au-dessus du contenu, pas au centre de l'écran */
+  .app-toast {
+    left: 260px !important;
+    transform: none !important;
+    bottom: 24px !important;
+    width: auto !important;
+  }
+}
+
 /* Respecte les préférences d'accessibilité */
 @media (prefers-reduced-motion: reduce) {
   *, .tab-content { animation: none !important; transition: none !important; }
