@@ -688,8 +688,12 @@ export default function App() {
     );
   }
 
-  // Abonnement : on bloque le propriétaire si son essai/abonnement est expiré
-  const aboExpire = estProprio && abonnement && new Date(abonnement.date_fin) <= new Date();
+  // Abonnement : on bloque le propriétaire si son essai/abonnement est expiré.
+  // Mais il reste libre de travailler dans les boutiques d'AUTRES patrons où il
+  // est employé — c'est leur abonnement à eux qui compte, pas le sien.
+  const boutiquesEmploye = boutiques.filter(b => b.proprietaire_id !== session.user.id);
+  const surBoutiqueDunAutre = !vueGlobale && boutiqueActive && boutiqueActive.proprietaire_id !== session.user.id;
+  const aboExpire = estProprio && abonnement && new Date(abonnement.date_fin) <= new Date() && !surBoutiqueDunAutre;
   if (aboExpire) {
     const statsPaywall = {
       boutiques: boutiques.length,
@@ -697,7 +701,10 @@ export default function App() {
       ventes: historique.filter(h => h.type === "vente").length,
       ca: kpi.ca,
     };
-    return <Paywall abonnement={abonnement} nomBoutique={boutiques[0]?.nom} email={session.user.email} stats={statsPaywall} onDeconnexion={deconnecter} />;
+    return <Paywall abonnement={abonnement} nomBoutique={boutiques[0]?.nom} email={session.user.email} stats={statsPaywall}
+      boutiquesEmploye={boutiquesEmploye}
+      onAllerBoutique={(b) => { setVueGlobale(false); setBoutiqueActive(b); setOnglet("saisie"); }}
+      onDeconnexion={deconnecter} />;
   }
 
   // Onboarding au tout premier lancement (propriétaire)

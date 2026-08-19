@@ -4,7 +4,7 @@ import { t } from "../i18n";
 import { ADMIN_WHATSAPP, PAIEMENT_INFOS, PRIX_ABONNEMENT, PRIX_ABONNEMENT_ANNUEL } from "../config";
 
 // Écran de blocage quand l'abonnement (ou l'essai) est expiré
-export default function Paywall({ abonnement, nomBoutique, email, stats, onDeconnexion }) {
+export default function Paywall({ abonnement, nomBoutique, email, stats, onDeconnexion, boutiquesEmploye = [], onAllerBoutique }) {
   const demander = (formule = "mois") => {
     const annuel = formule === "an";
     const montant = annuel ? PRIX_ABONNEMENT_ANNUEL : PRIX_ABONNEMENT;
@@ -103,6 +103,20 @@ export default function Paywall({ abonnement, nomBoutique, email, stats, onDecon
           style={{ width: "100%", padding: 14, background: "#25D366", color: "#fff", border: "none", borderRadius: 10, fontWeight: "bold", fontSize: 15, cursor: "pointer", marginBottom: 10 }}>
           💬 {t("jai_paye")}
         </button>
+        {/* Il travaille aussi comme employé ailleurs : ces boutiques restent accessibles */}
+        {boutiquesEmploye.length > 0 && onAllerBoutique && (
+          <div style={{ marginBottom: 10, paddingTop: 10, borderTop: `1px solid ${C.border}` }}>
+            <div style={{ color: C.muted, fontSize: 11, marginBottom: 6 }}>
+              Ce blocage ne concerne que tes propres boutiques. Tu peux continuer à travailler là où tu es employé :
+            </div>
+            {boutiquesEmploye.map(b => (
+              <button key={b.id} onClick={() => onAllerBoutique(b)}
+                style={{ width: "100%", padding: 11, marginBottom: 6, background: C.blue + "18", color: C.blue, border: `1px solid ${C.blue}44`, borderRadius: 10, fontWeight: "bold", fontSize: 13, cursor: "pointer" }}>
+                🏪 Aller à {b.nom}
+              </button>
+            ))}
+          </div>
+        )}
         <button onClick={onDeconnexion}
           style={{ width: "100%", padding: 10, background: "transparent", color: C.muted, border: `1px solid ${C.border}`, borderRadius: 10, fontSize: 13, cursor: "pointer" }}>
           Se déconnecter
