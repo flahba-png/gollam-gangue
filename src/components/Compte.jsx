@@ -8,7 +8,7 @@ import { msgErreur } from "../erreurs";
 // Écran "Mon compte" : boutiques, email, changer mot de passe, déconnexion
 export default function Compte({ email, onClose, onLogout, onStatut, onExport, onRestaurer, theme = "sombre", onTheme, langue = "fr", onLangue,
   devise = "XOF", onDevise,
-  boutiques = [], boutiqueActive, vueGlobale, proprietaireId, estPatron, onSelectBoutique, onGlobale, onBoutiqueCreated, onBoutiqueUpdated }) {
+  boutiques = [], boutiqueActive, vueGlobale, proprietaireId, estPatron, onSelectBoutique, onGlobale, onBoutiqueCreated, onBoutiqueUpdated, onBoutiqueSupprimee }) {
   const [logoEnCours, setLogoEnCours] = useState(false);
   // Mentions légales des factures (RCCM, NCC, statut juridique, siège, paiement)
   const [rccm, setRccm] = useState(boutiqueActive?.rccm || "");
@@ -115,7 +115,9 @@ export default function Compte({ email, onClose, onLogout, onStatut, onExport, o
               proprietaireId={proprietaireId} estPatron={estPatron}
               onSelect={(b) => { onSelectBoutique(b); }}
               onGlobale={onGlobale}
-              onCreated={onBoutiqueCreated} />
+              onCreated={onBoutiqueCreated}
+              onSupprimee={onBoutiqueSupprimee}
+              onStatut={onStatut} />
 
             {/* LOGO DE LA BOUTIQUE (reçus/factures) — patron */}
             {estPatron && !vueGlobale && boutiqueActive && (

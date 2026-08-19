@@ -869,7 +869,16 @@ export default function App() {
           onSelectBoutique={(b) => { setBoutiqueActive(b); setVueGlobale(false); }}
           onGlobale={() => { setVueGlobale(true); if (onglet === "saisie") setOnglet("dashboard"); }}
           onBoutiqueCreated={(b) => { setBoutiques(prev => [...prev, b]); setBoutiqueActive(b); setVueGlobale(false); }}
-          onBoutiqueUpdated={(b) => { setBoutiques(prev => prev.map(x => x.id === b.id ? b : x)); setBoutiqueActive(prev => prev?.id === b.id ? b : prev); }} />
+          onBoutiqueUpdated={(b) => { setBoutiques(prev => prev.map(x => x.id === b.id ? b : x)); setBoutiqueActive(prev => prev?.id === b.id ? b : prev); }}
+          onBoutiqueSupprimee={(b) => {
+            // La boutique (et ses dépôts) disparaissent : on bascule sur une autre.
+            const restantes = boutiques.filter(x => x.id !== b.id && x.parent_id !== b.id);
+            setBoutiques(restantes);
+            setVueGlobale(false);
+            setBoutiqueActive(prev => (prev && restantes.some(x => x.id === prev.id)) ? prev : (restantes[0] || null));
+            if (restantes.length === 0) { setCompteOuvert(false); setEstProprio(false); }
+            chargerDonnees();
+          }} />
       )}
 
       {/* RAPPEL FIN D'ESSAI — progressif : doux dès J-7, urgent à J-3 */}
