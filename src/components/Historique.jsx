@@ -4,9 +4,9 @@ import { supabase } from "../supabase";
 
 const exporterCSV = (historique) => {
   const lignes = [
-    ["Heure", "Type", "Description", "Montant (F)", "Bénéfice (F)", "Date"].join(";"),
+    ["Heure", "Type", "Description", "Montant (F)", "Bénéfice (F)", "Date", "Fait par"].join(";"),
     ...historique.map(h => [
-      h.heure, h.type, `"${h.texte}"`, h.montant || 0, h.benefice_etabli || 0, h.date_iso || ""
+      h.heure, h.type, `"${h.texte}"`, h.montant || 0, h.benefice_etabli || 0, h.date_iso || "", `"${h.vendeur_nom || ""}"`
     ].join(";"))
   ];
   const blob = new Blob(["﻿" + lignes.join("\n")], { type: "text/csv;charset=utf-8;" });
