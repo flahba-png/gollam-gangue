@@ -12,6 +12,7 @@ import SaisieForm from "./components/SaisieForm";
 import Compte from "./components/Compte";
 import Paywall from "./components/Paywall";
 import Onboarding, { onboardingVu } from "./components/Onboarding";
+import PremiereBoutique from "./components/PremiereBoutique";
 // Lazy : onglets secondaires (chargés à la demande → bundle initial plus léger)
 const Historique = lazy(() => import("./components/Historique"));
 const Stats = lazy(() => import("./components/Stats"));
@@ -47,6 +48,8 @@ export default function App() {
   const [monRole, setMonRole] = useState("proprietaire"); // proprietaire | gerant | vendeur
   const [monNom, setMonNom] = useState("Patron");
   const [estProprio, setEstProprio] = useState(false);   // possède au moins 1 boutique
+  const [boutiquesChargees, setBoutiquesChargees] = useState(false); // évite l'écran vide au démarrage
+  const [rechargerBoutiques, setRechargerBoutiques] = useState(0);   // relance la recherche de boutiques
   const [abonnement, setAbonnement] = useState(null);
   const [produits, setProduits] = useState([]);
   const [historique, setHistorique] = useState([]);
@@ -299,9 +302,11 @@ export default function App() {
         setBoutiqueActive(prev => prev || c.boutiques[0] || null);
         setEstProprio(c.boutiques.some(b => b.proprietaire_id === session.user.id));
       }
+     } finally {
+      setBoutiquesChargees(true);
      }
     })();
-  }, [session]);
+  }, [session, rechargerBoutiques]);
 
   // Déterminer mon rôle et mon nom sur la boutique active
   useEffect(() => {
@@ -705,6 +710,23 @@ export default function App() {
       boutiquesEmploye={boutiquesEmploye}
       onAllerBoutique={(b) => { setVueGlobale(false); setBoutiqueActive(b); setOnglet("saisie"); }}
       onDeconnexion={deconnecter} />;
+  }
+
+  // Aucune boutique : compte neuf, données supprimées, ou employé pas encore rattaché
+  if (boutiquesChargees && boutiques.length === 0) {
+    return <PremiereBoutique
+      email={session.user.email}
+      proprietaireId={session.user.id}
+      onCreated={(b) => {
+        // On relance le chargement : la boutique est prise en compte et
+        // l'essai gratuit est créé au passage (comme à l'inscription).
+        setBoutiqueActive(b);
+        setBoutiquesChargees(false);
+        setRechargerBoutiques(n => n + 1);
+      }}
+      onRafraichir={() => { setBoutiquesChargees(false); setRechargerBoutiques(n => n + 1); }}
+      onLogout={deconnecter}
+    />;
   }
 
   // Onboarding au tout premier lancement (propriétaire)

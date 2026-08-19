@@ -91,7 +91,9 @@ export default function Compte({ email, onClose, onLogout, onStatut, onExport, o
       await supabase.from("membres").delete().eq("user_id", uid);
     }
     await supabase.auth.signOut();
-    onStatut("Compte et données supprimés.");
+    // L'identifiant de connexion reste actif (suppression réservée à l'admin) :
+    // on le dit clairement, sinon l'utilisateur croit pouvoir se réinscrire.
+    onStatut("Données supprimées. Ton identifiant reste actif : reconnecte-toi avec le même email pour repartir de zéro (la réinscription avec cet email sera refusée).");
     onLogout();
   };
 
