@@ -4,9 +4,10 @@ import { supabase } from "../supabase";
 
 const exporterCSV = (historique) => {
   const lignes = [
-    ["Heure", "Type", "Description", "Montant (F)", "Bénéfice (F)", "Date", "Fait par"].join(";"),
+    ["Heure", "Type", "Description", "Montant (F)", "Bénéfice (F)", "Date", "Saisi par", "Argent remis à"].join(";"),
     ...historique.map(h => [
-      h.heure, h.type, `"${h.texte}"`, h.montant || 0, h.benefice_etabli || 0, h.date_iso || "", `"${h.vendeur_nom || ""}"`
+      h.heure, h.type, `"${h.texte}"`, h.montant || 0, h.benefice_etabli || 0, h.date_iso || "",
+      `"${h.vendeur_nom || ""}"`, `"${h.details_facture?.beneficiaire || ""}"`
     ].join(";"))
   ];
   const blob = new Blob(["﻿" + lignes.join("\n")], { type: "text/csv;charset=utf-8;" });
@@ -108,7 +109,12 @@ export default function Historique({ historique, produits, boutiqueId, onRefresh
                   <div style={{ color: h.type === "retour" ? C.red : C.text }}>{h.texte}</div>
                   <div style={{ color: C.muted, fontSize: 10, marginTop: 2 }}>
                     {h.heure} · {h.date_iso}
-                    {h.vendeur_nom && <span style={{ color: h.type === "depense" ? C.red : C.muted, fontWeight: h.type === "depense" ? "bold" : "normal" }}> · 👤 {h.vendeur_nom}</span>}
+                    {(h.details_facture?.beneficiaire || h.vendeur_nom) && (
+                      <span style={{ color: h.type === "depense" ? C.red : C.muted, fontWeight: h.type === "depense" ? "bold" : "normal" }}>
+                        {" · 👤 "}{h.details_facture?.beneficiaire || h.vendeur_nom}
+                        {h.details_facture?.beneficiaire && h.vendeur_nom && <span style={{ color: C.muted, fontWeight: "normal" }}> (saisi par {h.vendeur_nom})</span>}
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>

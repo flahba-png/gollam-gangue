@@ -6,7 +6,7 @@ import ProduitSelect from "./ProduitSelect";
 import { TARIFS, labelPalier, aDesPaliers, palierAuto, prixDuPalier } from "../tarifs";
 
 // Formulaire de saisie : panier multi-articles pour vente/crédit, simple pour stock/dépense
-export default function SaisieForm({ produits, onSubmit, chargement, estEntrepot = false, fournisseurs = [], clientsConnus = [], promos = {} }) {
+export default function SaisieForm({ produits, onSubmit, chargement, estEntrepot = false, fournisseurs = [], clientsConnus = [], promos = {}, beneficiairesConnus = [] }) {
   const [type, setType] = useState(estEntrepot ? "ajout" : "vente"); // vente | ajout | depense | credit
 
   // Constructeur de ligne
@@ -26,6 +26,7 @@ export default function SaisieForm({ produits, onSubmit, chargement, estEntrepot
   const [avance, setAvance] = useState("");
   const [remise, setRemise] = useState("");
   const [description, setDescription] = useState("");
+  const [beneficiaire, setBeneficiaire] = useState(""); // qui a pris / reçu l'argent (dépense)
   const [modePaiement, setModePaiement] = useState("especes");
   const [mixte, setMixte] = useState(false);          // paiement réparti sur plusieurs modes
   const [repart, setRepart] = useState({});           // mode -> montant (string)
@@ -39,7 +40,7 @@ export default function SaisieForm({ produits, onSubmit, chargement, estEntrepot
 
   const resetTout = () => {
     setProduitId(""); setNouveauNom(""); setQuantite("1"); setPrixUnit(""); setPrixAchat("");
-    setPanier([]); setClient(""); setClientPhone(""); setAvance(""); setRemise(""); setDescription("");
+    setPanier([]); setClient(""); setClientPhone(""); setAvance(""); setRemise(""); setDescription(""); setBeneficiaire("");
     setModePaiement("especes"); setMixte(false); setRepart({}); setUniteSaisie("piece"); setFournisseurId("");
   };
 
@@ -106,7 +107,7 @@ export default function SaisieForm({ produits, onSubmit, chargement, estEntrepot
 
     if (type === "depense") {
       if (!description.trim() || !prixUnit) return;
-      onSubmit({ action: "depense", nom: description.trim(), montantDepense: parseInt(prixUnit) || 0, quantite: 1, prixAchat: 0, prixVente: 0, isCredit: false, client: "", avance: 0, modePaiement, clientPhone: "" });
+      onSubmit({ action: "depense", nom: description.trim(), montantDepense: parseInt(prixUnit) || 0, quantite: 1, prixAchat: 0, prixVente: 0, isCredit: false, client: "", avance: 0, modePaiement, clientPhone: "", beneficiaire: beneficiaire.trim() });
       resetTout();
       return;
     }
@@ -184,6 +185,13 @@ export default function SaisieForm({ produits, onSubmit, chargement, estEntrepot
           <div>
             <label style={labelStyle}>MONTANT (F)</label>
             <input type="number" inputMode="numeric" value={prixUnit} onChange={e => setPrixUnit(e.target.value)} placeholder="0" style={inputStyle} />
+          </div>
+          <div>
+            <label style={labelStyle}>👤 QUI A PRIS L'ARGENT ? (facultatif)</label>
+            <input value={beneficiaire} onChange={e => setBeneficiaire(e.target.value)} list="beneficiaires-connus"
+              placeholder="Ex: Moussa, le chauffeur, moi-même..." style={inputStyle} />
+            <datalist id="beneficiaires-connus">{beneficiairesConnus.map((b, i) => <option key={i} value={b} />)}</datalist>
+            <div style={{ fontSize: 10, color: C.muted, marginTop: 4 }}>Laisse vide si c'est toi. Sinon note le nom : chaque sortie d'argent reste tracée.</div>
           </div>
         </div>
       ) : type === "ajout" ? (

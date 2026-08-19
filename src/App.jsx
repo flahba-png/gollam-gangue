@@ -417,6 +417,13 @@ export default function App() {
     return map;
   }, [promotions]);
 
+  // Personnes déjà bénéficiaires d'une dépense (saisie plus rapide la fois d'après)
+  const beneficiairesConnus = useMemo(() => {
+    const set = new Set();
+    historique.forEach(h => { const b = h.details_facture?.beneficiaire; if (b) set.add(b); });
+    return [...set].sort((a, b) => a.localeCompare(b));
+  }, [historique]);
+
   // Liste unifiée des clients connus (crédits + ventes nominatives + carnet)
   const clientsConnus = useMemo(() => {
     const map = new Map();
@@ -943,7 +950,7 @@ export default function App() {
                 🌍 Vue globale active.<br />Choisis une boutique précise en haut pour enregistrer une opération.
               </div>
             ) : (
-              <SaisieForm produits={produits} onSubmit={enregistrerForm} chargement={chargement} estEntrepot={estEntrepot} fournisseurs={fournisseurs} clientsConnus={clientsConnus} promos={promosActives} />
+              <SaisieForm produits={produits} onSubmit={enregistrerForm} chargement={chargement} estEntrepot={estEntrepot} fournisseurs={fournisseurs} clientsConnus={clientsConnus} promos={promosActives} beneficiairesConnus={beneficiairesConnus} />
             )}
           </div>
         )}

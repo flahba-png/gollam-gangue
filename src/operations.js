@@ -74,6 +74,8 @@ export const ecrireOperation = async (donnees, boutiqueId, monNom = "") => {
   } else if (action === "depense") {
     log.texte = `💸 ${nom}`;
     log.montant = montantDepense || 0;
+    // Qui a réellement pris l'argent (peut différer de celui qui saisit)
+    if (donnees.beneficiaire) log.details_facture = { beneficiaire: donnees.beneficiaire };
 
   } else {
     const fId = donnees.fournisseurId || null;
