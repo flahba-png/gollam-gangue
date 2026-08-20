@@ -795,12 +795,13 @@ export default function App() {
 
   // Rangement du menu de bureau par métier (inspiré des ERP : Acteurs, Stock…)
   const SECTIONS_NAV = [
-    { titre: "Accueil", ids: ["dashboard", "saisie"] },
-    { titre: "Ventes", ids: ["historique", "credits", "documents", "promotions"] },
-    { titre: "Stock", ids: ["stock", "inventaire", "transferts"] },
+    { titre: "Accueil", ids: ["dashboard"], extras: [{ id: "__profil", label: "⚙️", title: "Mon profil", action: () => setCompteOuvert(true) }] },
+    { titre: "Ventes", ids: ["saisie", "credits", "documents", "promotions"] },
+    { titre: "Stock", ids: ["stock", "transferts", "inventaire"] },
     { titre: "Achats", ids: ["fournisseurs", "bons_commande", "dettes_fourn"] },
     { titre: "Acteurs", ids: ["chat", "equipe"] },
-    { titre: "Finances", ids: ["caisse", "stats"] },
+    { titre: "Rapports", ids: ["historique", "stats"] },
+    { titre: "Trésorerie", ids: ["caisse"] },
     { titre: "Contrôle", ids: ["journal", "admin"] },
   ];
   const groupesNav = (() => {
@@ -808,7 +809,9 @@ export default function App() {
     const groupes = SECTIONS_NAV.map(s => {
       const liste = s.ids.map(id => tabs.find(t => t.id === id)).filter(Boolean);
       liste.forEach(t => places.add(t.id));
-      return { titre: s.titre, tabs: liste };
+      // Entrées spéciales (ex : Mon profil, qui ouvre un panneau au lieu d'un onglet)
+      const complet = liste.length > 0 ? [...liste, ...(s.extras || [])] : [];
+      return { titre: s.titre, tabs: complet };
     }).filter(g => g.tabs.length > 0);
     const restants = tabs.filter(t => !places.has(t.id)); // filet : rien ne disparaît
     if (restants.length) groupes.push({ titre: "Autres", tabs: restants });
@@ -817,9 +820,9 @@ export default function App() {
 
   // Un onglet de la barre (identique en bas sur téléphone et à gauche sur ordinateur)
   const boutonOnglet = (tab) => {
-    const actif = onglet === tab.id;
+    const actif = !tab.action && onglet === tab.id;
     return (
-      <button key={tab.id} onClick={() => { setOnglet(tab.id); setMenuPlus(false); }} className={`nav-btn${actif ? " nav-btn-actif" : ""}`}
+      <button key={tab.id} onClick={() => { if (tab.action) { tab.action(); return; } setOnglet(tab.id); setMenuPlus(false); }} className={`nav-btn${actif ? " nav-btn-actif" : ""}`}
         style={{ flex: 1, padding: "7px 2px 6px", background: "transparent", border: "none", cursor: "pointer", position: "relative" }}>
         <div className="nav-ico" style={{ fontSize: 19, transform: actif ? "translateY(-1px) scale(1.12)" : "none", transition: "transform 0.2s cubic-bezier(0.22,1,0.36,1)", filter: actif ? "none" : "grayscale(0.3) opacity(0.85)" }}>{tab.label}</div>
         <div className="nav-txt" style={{ fontSize: 9, color: actif ? C.green : C.muted, marginTop: 2, fontWeight: actif ? "bold" : "normal" }}>{tab.title}</div>

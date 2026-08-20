@@ -5,10 +5,35 @@
 
 ---
 
+## 🎯 Structure cible du menu (définie par Amadou)
+
+Le menu de bureau suit désormais cette organisation. Les cases **manquantes** sont listées en dessous.
+
+| Section | Souhaité | État |
+|---|---|---|
+| **Accueil** | Accueil, Profil | ✅ complet |
+| **Ventes** | Vente en détail, Bon de commande client, Crédits, Documents, Promotions | ⚠️ manque le *bon de commande client* (le devis en tient lieu) |
+| **Stock** | Entrées, Sorties, Transfert, Ajustement | ⚠️ manque *Entrées* et *Sorties* en écrans dédiés |
+| **Achats** | Bons de commande, Enregistrer facture fournisseur, Règlement, Factures fournisseurs, Dettes | ⚠️ facture/règlement partiellement couverts par Dettes fournisseurs |
+| **Acteurs** | Clients, Fournisseurs, Utilisateurs | ⚠️ *Clients* est dans Messages, pas en entrée séparée |
+| **Rapports** | Historique produits, Mouvement de stock, Rapport commercial, Rapport financier | ⚠️ tout est dans Stats + Historique, pas séparé |
+| **Trésorerie** | Caisse, Ouverture/fermeture, Transactions | ⚠️ la *fermeture* existe (clôture), pas l'*ouverture* |
+| **Contrôle** | Admin (réservé) | ✅ complet |
+
 ## 🔴 À faire en priorité
 
 - [ ] **Sortie de stock directe avec motif** — aujourd'hui une pièce ne peut sortir que par une vente ou un inventaire complet. Manque : *produit + quantité + motif (casse, perte, vol, don, usage personnel, retour fournisseur) + validation*, avec rappel du stock disponible pendant la saisie et les 30 dernières sorties affichées juste en dessous. Complète l'angle anti-vol (chaque sortie a un motif ET un responsable).
+- [ ] **Entrée de stock en écran dédié** — même principe que la sortie (aujourd'hui noyée dans Saisie → Stock).
 - [ ] **Dépenses dans la clôture de caisse** — le filtre par vendeur ne compte que les ventes. Si un vendeur sort de l'argent, ça n'apparaît pas dans sa clôture.
+- [ ] **Clients en entrée de menu séparée** (section Acteurs) — aujourd'hui il faut passer par Messages.
+
+## 🟠 Structure comptable Achats / Rapports / Trésorerie
+
+- [ ] **Factures fournisseurs** : liste complète (payées + impayées), aujourd'hui Dettes fournisseurs ne montre que les impayées.
+- [ ] **Enregistrer une facture fournisseur** et **Règlement** comme deux actions distinctes.
+- [ ] **Rapports séparés** : mouvement de stock, rapport commercial, rapport financier (tout est fondu dans Stats aujourd'hui).
+- [ ] **Ouverture de caisse** (fond de caisse du matin) en plus de la clôture du soir.
+- [ ] **Bon de commande client** (commande d'un client avant livraison), distinct du bon de commande fournisseur.
 
 ## 🟠 Utile, pas urgent
 
