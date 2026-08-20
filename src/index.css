@@ -189,6 +189,18 @@ input:focus, select:focus, textarea:focus {
   }
   .nav-actif { display: none; } /* remplacé par le fond de l'onglet actif */
 
+  /* Titres de section du menu (Ventes, Stock, Acteurs…) */
+  .nav-groupe {
+    font-size: 9px;
+    font-weight: bold;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    color: var(--muted);
+    opacity: 0.75;
+    padding: 14px 14px 5px;
+  }
+  .nav-groupe:first-child { padding-top: 4px; }
+
   /* Notifications : au-dessus du contenu, pas au centre de l'écran */
   .app-toast {
     left: 260px !important;

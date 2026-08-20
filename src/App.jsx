@@ -792,6 +792,44 @@ export default function App() {
   // onglets y tiennent (plus besoin du menu « ⋯ Plus »).
   const primaires = estBureau ? tabs : idsPrimaires.map(id => tabs.find(t => t.id === id)).filter(Boolean);
   const secondaires = estBureau ? [] : tabs.filter(t => !idsPrimaires.includes(t.id));
+
+  // Rangement du menu de bureau par métier (inspiré des ERP : Acteurs, Stock…)
+  const SECTIONS_NAV = [
+    { titre: "Accueil", ids: ["dashboard", "saisie"] },
+    { titre: "Ventes", ids: ["historique", "credits", "documents", "promotions"] },
+    { titre: "Stock", ids: ["stock", "inventaire", "transferts"] },
+    { titre: "Achats", ids: ["fournisseurs", "bons_commande", "dettes_fourn"] },
+    { titre: "Acteurs", ids: ["chat", "equipe"] },
+    { titre: "Finances", ids: ["caisse", "stats"] },
+    { titre: "Contrôle", ids: ["journal", "admin"] },
+  ];
+  const groupesNav = (() => {
+    const places = new Set();
+    const groupes = SECTIONS_NAV.map(s => {
+      const liste = s.ids.map(id => tabs.find(t => t.id === id)).filter(Boolean);
+      liste.forEach(t => places.add(t.id));
+      return { titre: s.titre, tabs: liste };
+    }).filter(g => g.tabs.length > 0);
+    const restants = tabs.filter(t => !places.has(t.id)); // filet : rien ne disparaît
+    if (restants.length) groupes.push({ titre: "Autres", tabs: restants });
+    return groupes;
+  })();
+
+  // Un onglet de la barre (identique en bas sur téléphone et à gauche sur ordinateur)
+  const boutonOnglet = (tab) => {
+    const actif = onglet === tab.id;
+    return (
+      <button key={tab.id} onClick={() => { setOnglet(tab.id); setMenuPlus(false); }} className={`nav-btn${actif ? " nav-btn-actif" : ""}`}
+        style={{ flex: 1, padding: "7px 2px 6px", background: "transparent", border: "none", cursor: "pointer", position: "relative" }}>
+        <div className="nav-ico" style={{ fontSize: 19, transform: actif ? "translateY(-1px) scale(1.12)" : "none", transition: "transform 0.2s cubic-bezier(0.22,1,0.36,1)", filter: actif ? "none" : "grayscale(0.3) opacity(0.85)" }}>{tab.label}</div>
+        <div className="nav-txt" style={{ fontSize: 9, color: actif ? C.green : C.muted, marginTop: 2, fontWeight: actif ? "bold" : "normal" }}>{tab.title}</div>
+        {tab.badge > 0 && (
+          <div className="nav-badge" style={{ position: "absolute", top: 2, right: "50%", transform: "translateX(9px)", background: C.red, color: "#fff", fontSize: 8, minWidth: 14, height: 14, padding: "0 3px", borderRadius: 7, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "bold", animation: "popIn 0.2s ease" }}>{tab.badge}</div>
+        )}
+        {actif && <div className="nav-actif" style={{ position: "absolute", bottom: 0, left: "25%", right: "25%", height: 2.5, background: C.green, borderRadius: 2, boxShadow: `0 0 8px ${C.green}` }} />}
+      </button>
+    );
+  };
   const badgeSecondaire = secondaires.some(t => t.badge > 0);
 
   // Si le vendeur est sur un onglet interdit, le ramener sur "saisie"
@@ -1093,20 +1131,16 @@ export default function App() {
       )}
 
       <div className="app-nav" style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 480, background: "rgba(22,28,36,0.9)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", borderTop: `1px solid ${C.border}`, display: "flex", boxSizing: "border-box", paddingBottom: "env(safe-area-inset-bottom)", boxShadow: "0 -4px 24px rgba(0,0,0,0.3)", zIndex: 152 }}>
-        {primaires.map(tab => {
-          const actif = onglet === tab.id;
-          return (
-            <button key={tab.id} onClick={() => { setOnglet(tab.id); setMenuPlus(false); }} className={`nav-btn${actif ? " nav-btn-actif" : ""}`}
-              style={{ flex: 1, padding: "7px 2px 6px", background: "transparent", border: "none", cursor: "pointer", position: "relative" }}>
-              <div className="nav-ico" style={{ fontSize: 19, transform: actif ? "translateY(-1px) scale(1.12)" : "none", transition: "transform 0.2s cubic-bezier(0.22,1,0.36,1)", filter: actif ? "none" : "grayscale(0.3) opacity(0.85)" }}>{tab.label}</div>
-              <div className="nav-txt" style={{ fontSize: 9, color: actif ? C.green : C.muted, marginTop: 2, fontWeight: actif ? "bold" : "normal" }}>{tab.title}</div>
-              {tab.badge > 0 && (
-                <div className="nav-badge" style={{ position: "absolute", top: 2, right: "50%", transform: "translateX(9px)", background: C.red, color: "#fff", fontSize: 8, minWidth: 14, height: 14, padding: "0 3px", borderRadius: 7, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "bold", animation: "popIn 0.2s ease" }}>{tab.badge}</div>
-              )}
-              {actif && <div className="nav-actif" style={{ position: "absolute", bottom: 0, left: "25%", right: "25%", height: 2.5, background: C.green, borderRadius: 2, boxShadow: `0 0 8px ${C.green}` }} />}
-            </button>
-          );
-        })}
+        {/* Sur ordinateur les onglets sont rangés par section (Ventes, Stock,
+            Achats, Acteurs…) ; sur téléphone ils restent à plat dans la barre. */}
+        {estBureau
+          ? groupesNav.map(g => (
+              <React.Fragment key={g.titre}>
+                <div className="nav-groupe">{g.titre}</div>
+                {g.tabs.map(boutonOnglet)}
+              </React.Fragment>
+            ))
+          : primaires.map(boutonOnglet)}
         {/* Bouton PLUS */}
         {secondaires.length > 0 && (
           <button onClick={() => setMenuPlus(o => !o)} className="nav-btn"
