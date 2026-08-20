@@ -22,8 +22,6 @@ Le menu de bureau suit désormais cette organisation. Les cases **manquantes** s
 
 ## 🔴 À faire en priorité
 
-- [ ] **Sortie de stock directe avec motif** — aujourd'hui une pièce ne peut sortir que par une vente ou un inventaire complet. Manque : *produit + quantité + motif (casse, perte, vol, don, usage personnel, retour fournisseur) + validation*, avec rappel du stock disponible pendant la saisie et les 30 dernières sorties affichées juste en dessous. Complète l'angle anti-vol (chaque sortie a un motif ET un responsable).
-- [ ] **Entrée de stock en écran dédié** — même principe que la sortie (aujourd'hui noyée dans Saisie → Stock).
 - [ ] **Dépenses dans la clôture de caisse** — le filtre par vendeur ne compte que les ventes. Si un vendeur sort de l'argent, ça n'apparaît pas dans sa clôture.
 - [ ] **Clients en entrée de menu séparée** (section Acteurs) — aujourd'hui il faut passer par Messages.
 
@@ -58,6 +56,8 @@ Le menu de bureau suit désormais cette organisation. Les cases **manquantes** s
 
 ## ✅ Fait récemment
 
+- [x] **Entrées et Sorties de stock** en écrans dédiés (motif obligatoire à la sortie, rappel du stock en direct, 30 derniers mouvements sous le formulaire, auteur tracé)
+- [x] **Marque des produits** + filtre par marque avec compteur
 - [x] Bouton **➕ Nouveau produit** dans l'onglet Stock (il fallait passer par Saisie avant)
 - [x] **Qui a pris l'argent** sur les dépenses (bénéficiaire + saisi par)
 - [x] Auteur affiché sur chaque opération, export Excel inclus

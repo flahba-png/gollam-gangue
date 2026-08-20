@@ -112,7 +112,7 @@ alter table historique add column if not exists mode_paiement text default 'espe
 alter table historique add column if not exists vendeur_nom text;
 alter table historique drop constraint if exists historique_type_check;
 alter table historique add constraint historique_type_check
-  check (type in ('vente', 'depense', 'ajout', 'transfert', 'retour', 'inventaire'));
+  check (type in ('vente', 'depense', 'ajout', 'transfert', 'retour', 'inventaire', 'sortie'));
 
 -- ========== CRÉDITS ==========
 create table if not exists credits (

@@ -108,7 +108,7 @@ export const exporterAnalyseCSV = (palmares, dormants, boutique) => {
 // Export comptable : journal détaillé de tous les mouvements (pour un comptable).
 // CSV ouvrable dans Excel ; montants en nombres bruts (sans symbole de devise).
 export const exporterJournalComptable = (historique, boutique, periode = "") => {
-  const typeLisible = { vente: "Vente", depense: "Dépense", retour: "Retour/Avoir", ajout: "Entrée stock", transfert: "Transfert", inventaire: "Inventaire" };
+  const typeLisible = { vente: "Vente", depense: "Dépense", retour: "Retour/Avoir", ajout: "Entrée stock", sortie: "Sortie stock", transfert: "Transfert", inventaire: "Inventaire" };
   // Sens comptable : recettes positives, dépenses/retours négatifs
   const signe = (h) => (h.type === "depense" || h.type === "retour") ? -1 : 1;
   const rows = [...historique]

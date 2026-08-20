@@ -67,6 +67,7 @@ export default function Historique({ historique, produits, boutiqueId, onRefresh
             <option value="ajout">Ajouts stock</option>
             <option value="transfert">Transferts</option>
             <option value="retour">Retours</option>
+            <option value="sortie">Sortie de stock</option>
             <option value="inventaire">Inventaire</option>
           </select>
           {(filtreDate || filtreType !== "tous") && (

@@ -20,6 +20,7 @@ const Transferts = lazy(() => import("./components/Transferts"));
 const Equipe = lazy(() => import("./components/Equipe"));
 const Fournisseurs = lazy(() => import("./components/Fournisseurs"));
 const DettesFournisseurs = lazy(() => import("./components/DettesFournisseurs"));
+const MouvementsStock = lazy(() => import("./components/MouvementsStock"));
 const Cloture = lazy(() => import("./components/Cloture"));
 const Inventaire = lazy(() => import("./components/Inventaire"));
 const Admin = lazy(() => import("./components/Admin"));
@@ -763,6 +764,8 @@ export default function App() {
     { id: "fournisseurs", label: "🚚", title: t("reassort"), badge: produits.filter(p => (p.stock || 0) <= (p.seuil_alerte ?? 2)).length },
     { id: "bons_commande", label: "📥", title: "Bons de commande" },
     { id: "dettes_fourn", label: "💸", title: "Dettes fournisseurs" },
+    { id: "entrees", label: "📥", title: "Entrées de stock" },
+    { id: "sorties", label: "📤", title: "Sorties de stock" },
     { id: "promotions", label: "🎉", title: "Promotions" },
     { id: "credits", label: "📒", title: t("credits"), badge: credits.length },
     { id: "documents", label: "🧾", title: t("documents") },
@@ -779,6 +782,8 @@ export default function App() {
     { id: "saisie", label: "➕", title: t("vendre") },
     { id: "historique", label: "📊", title: t("historique") },
     perms.stock_modifier && { id: "stock", label: "📦", title: t("stock") },
+    perms.stock_modifier && { id: "entrees", label: "📥", title: "Entrées de stock" },
+    perms.stock_modifier && { id: "sorties", label: "📤", title: "Sorties de stock" },
     perms.credit_accorder && { id: "credits", label: "📒", title: t("credits"), badge: credits.length },
     { id: "documents", label: "🧾", title: t("documents") },
     { id: "chat", label: "💬", title: t("chat") },
@@ -797,7 +802,7 @@ export default function App() {
   const SECTIONS_NAV = [
     { titre: "Accueil", ids: ["dashboard"], extras: [{ id: "__profil", label: "⚙️", title: "Mon profil", action: () => setCompteOuvert(true) }] },
     { titre: "Ventes", ids: ["saisie", "credits", "documents", "promotions"] },
-    { titre: "Stock", ids: ["stock", "transferts", "inventaire"] },
+    { titre: "Stock", ids: ["stock", "entrees", "sorties", "transferts", "inventaire"] },
     { titre: "Achats", ids: ["fournisseurs", "bons_commande", "dettes_fourn"] },
     { titre: "Acteurs", ids: ["chat", "equipe"] },
     { titre: "Rapports", ids: ["historique", "stats"] },
@@ -1017,6 +1022,19 @@ export default function App() {
             </div>
           ) : (
             <Fournisseurs produits={produits} boutiqueActive={boutiqueActive} onRefresh={chargerDonnees} onStatut={setStatut} boutique={boutique} />
+          )
+        )}
+        {(onglet === "entrees" || onglet === "sorties") && (
+          vueGlobale ? (
+            <div style={{ padding: "0 12px" }}>
+              <div style={{ background: C.surface, borderRadius: 8, border: `1px solid ${C.border}`, padding: 20, textAlign: "center", color: C.muted, fontSize: 13 }}>
+                🌍 Choisis une boutique précise pour gérer ses mouvements de stock.
+              </div>
+            </div>
+          ) : (
+            <MouvementsStock mode={onglet === "sorties" ? "sortie" : "entree"}
+              produits={produits} historique={historique} boutiqueId={boutiqueActive?.id}
+              fournisseurs={fournisseurs} monNom={monNom} onRefresh={chargerDonnees} onStatut={setStatut} />
           )
         )}
         {onglet === "dettes_fourn" && estPatron && (
