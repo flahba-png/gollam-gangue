@@ -69,6 +69,8 @@ alter table boutiques add column if not exists siege text;
 alter table boutiques add column if not exists infos_paiement text;
 -- Photo des produits pour catalogue + pub d'article (migration 38)
 alter table produits add column if not exists photo text;
+-- Marque du produit, pour filtrer/regrouper le catalogue (migration 40)
+alter table produits add column if not exists marque text;
 
 -- ========== MIGRATION 39 : dettes fournisseurs ==========
 create table if not exists dettes_fournisseurs (

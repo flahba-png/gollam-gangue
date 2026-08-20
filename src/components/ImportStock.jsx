@@ -16,6 +16,7 @@ const CHAMPS = [
   { id: "seuil_demi_gros", label: "Seuil demi-gros (qté)", num: true, mots: ["seuil demi", "seuildemi", "min demi", "qte demi"] },
   { id: "seuil_gros", label: "Seuil gros (qté)", num: true, mots: ["seuil gros", "seuilgros", "min gros", "qte gros"] },
   { id: "stock", label: "Quantité / Stock", num: true, mots: ["stock", "quantite", "quantité", "qte", "qté", "dispo"] },
+  { id: "marque", label: "Marque", mots: ["marque", "brand", "fabricant"] },
   { id: "categorie", label: "Catégorie", mots: ["categorie", "catégorie", "famille", "rayon", "type"] },
   { id: "reference_oem", label: "Référence (OEM)", mots: ["ref", "référence", "reference", "oem"] },
   { id: "code_barre", label: "Code-barres", mots: ["code", "barre", "barcode", "ean"] },
@@ -82,6 +83,7 @@ export default function ImportStock({ produits, boutiqueId, onRefresh, onStatut,
         seuil_demi_gros: mapping.seuil_demi_gros != null ? toNum(r[mapping.seuil_demi_gros]) : 0,
         seuil_gros: mapping.seuil_gros != null ? toNum(r[mapping.seuil_gros]) : 0,
         stock: mapping.stock != null ? toNum(r[mapping.stock]) : 0,
+        marque: mapping.marque != null ? String(r[mapping.marque] ?? "").trim() || null : null,
         categorie: mapping.categorie != null ? String(r[mapping.categorie] ?? "").trim() || null : null,
         reference_oem: mapping.reference_oem != null ? String(r[mapping.reference_oem] ?? "").trim() || null : null,
         code_barre: mapping.code_barre != null ? String(r[mapping.code_barre] ?? "").trim() || null : null,
@@ -97,6 +99,7 @@ export default function ImportStock({ produits, boutiqueId, onRefresh, onStatut,
         if (!ex.prix_gros) ex.prix_gros = obj.prix_gros;
         if (!ex.seuil_demi_gros) ex.seuil_demi_gros = obj.seuil_demi_gros;
         if (!ex.seuil_gros) ex.seuil_gros = obj.seuil_gros;
+        ex.marque = ex.marque || obj.marque;
         ex.categorie = ex.categorie || obj.categorie;
         ex.reference_oem = ex.reference_oem || obj.reference_oem;
         ex.code_barre = ex.code_barre || obj.code_barre;
@@ -119,12 +122,12 @@ export default function ImportStock({ produits, boutiqueId, onRefresh, onStatut,
       // 1. Nouveaux produits : insertion en lot.
       // Les colonnes de tarifs gros ne sont envoyées que si elles sont mappées
       // (et si la base ne les connaît pas encore, on réessaie sans elles).
-      const avecGros = ["prix_demi_gros", "prix_gros", "seuil_demi_gros", "seuil_gros"].some(k => mapping[k] != null);
-      const sansGros = (row) => { const { prix_demi_gros, prix_gros, seuil_demi_gros, seuil_gros, ...reste } = row; return reste; };
+      const avecGros = ["prix_demi_gros", "prix_gros", "seuil_demi_gros", "seuil_gros", "marque"].some(k => mapping[k] != null);
+      const sansGros = (row) => { const { prix_demi_gros, prix_gros, seuil_demi_gros, seuil_gros, marque, ...reste } = row; return reste; };
       const nouveaux = prepares.filter(p => !p.existant)
         .map(p => ({
           boutique_id: boutiqueId, nom: p.nom, prix_achat: p.prix_achat, prix_vente: p.prix_vente,
-          ...(avecGros ? { prix_demi_gros: p.prix_demi_gros, prix_gros: p.prix_gros, seuil_demi_gros: p.seuil_demi_gros, seuil_gros: p.seuil_gros } : {}),
+          ...(avecGros ? { prix_demi_gros: p.prix_demi_gros, prix_gros: p.prix_gros, seuil_demi_gros: p.seuil_demi_gros, seuil_gros: p.seuil_gros, marque: p.marque } : {}),
           stock: p.stock, categorie: p.categorie, reference_oem: p.reference_oem, code_barre: p.code_barre,
         }));
       for (let i = 0; i < nouveaux.length; i += 200) {
@@ -150,6 +153,7 @@ export default function ImportStock({ produits, boutiqueId, onRefresh, onStatut,
           if (p.prix_gros) patch.prix_gros = p.prix_gros;
           if (p.seuil_demi_gros) patch.seuil_demi_gros = p.seuil_demi_gros;
           if (p.seuil_gros) patch.seuil_gros = p.seuil_gros;
+          if (p.marque) patch.marque = p.marque;
           if (p.categorie) patch.categorie = p.categorie;
           if (p.reference_oem) patch.reference_oem = p.reference_oem;
           if (p.code_barre) patch.code_barre = p.code_barre;

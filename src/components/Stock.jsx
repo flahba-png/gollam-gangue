@@ -26,8 +26,9 @@ export default function Stock({ produits, boutiqueId, boutique, onRefresh, fourn
   const [importOuvert, setImportOuvert] = useState(false);
   const [tri, setTri] = useState("stock");
   const [categorie, setCategorie] = useState("toutes");
+  const [marque, setMarque] = useState("toutes");
   const [creation, setCreation] = useState(false);
-  const [nouveau, setNouveau] = useState({ nom: "", categorie: "", prixAchat: "", prixVente: "", stock: "" });
+  const [nouveau, setNouveau] = useState({ nom: "", marque: "", categorie: "", prixAchat: "", prixVente: "", stock: "" });
 
   const creerProduit = async () => {
     const nom = (nouveau.nom || "").trim();
@@ -38,6 +39,7 @@ export default function Stock({ produits, boutiqueId, boutique, onRefresh, fourn
     setSauvegarde(true);
     const { error } = await supabase.from("produits").insert({
       boutique_id: boutiqueId, nom,
+      marque: (nouveau.marque || "").trim() || null,
       categorie: (nouveau.categorie || "").trim() || null,
       prix_achat: parseInt(nouveau.prixAchat) || 0,
       prix_vente: parseInt(nouveau.prixVente) || 0,
@@ -58,17 +60,28 @@ export default function Stock({ produits, boutiqueId, boutique, onRefresh, fourn
     return [...set].sort((a, b) => a.localeCompare(b));
   }, [produits]);
 
+  // Marques existantes (APSONIC, Yamaha, Haojue...) + nombre d'articles
+  const marques = useMemo(() => {
+    const map = new Map();
+    produits.forEach(p => { if (p.marque) map.set(p.marque, (map.get(p.marque) || 0) + 1); });
+    return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+  }, [produits]);
+
   const produitsFiltres = useMemo(() => {
     const q = recherche.toLowerCase();
     const liste = produits.filter(p => {
       const okCat = categorie === "toutes"
         || (categorie === "_sans" ? !p.categorie : p.categorie === categorie);
       if (!okCat) return false;
+      const okMarque = marque === "toutes"
+        || (marque === "_sans" ? !p.marque : p.marque === marque);
+      if (!okMarque) return false;
       if (!recherche) return true;
       return p.nom?.toLowerCase().includes(q)
         || p.reference_oem?.toLowerCase().includes(q)
         || p.compatibilite?.toLowerCase().includes(q)
         || p.categorie?.toLowerCase().includes(q)
+        || p.marque?.toLowerCase().includes(q)
         || p.code_barre?.toLowerCase().includes(q);
     });
     const cmp = {
@@ -80,11 +93,11 @@ export default function Stock({ produits, boutiqueId, boutique, onRefresh, fourn
       prix_desc: (a, b) => (b.prix_vente || 0) - (a.prix_vente || 0),
     }[tri] || (() => 0);
     return [...liste].sort(cmp);
-  }, [produits, recherche, categorie, tri]);
+  }, [produits, recherche, categorie, marque, tri]);
 
   const startEdit = (p) => {
     setEditId(p.id);
-    setEditData({ nom: p.nom, categorie: p.categorie || "", prixAchat: p.prix_achat, prixVente: p.prix_vente, stock: p.stock, seuil: p.seuil_alerte ?? 2, fournisseurId: p.fournisseur_id || "", codeBarre: p.code_barre || "", refOem: p.reference_oem || "", compat: p.compatibilite || "", frais: p.frais_unitaire || 0, carton: p.unites_par_carton || 1,
+    setEditData({ nom: p.nom, marque: p.marque || "", categorie: p.categorie || "", prixAchat: p.prix_achat, prixVente: p.prix_vente, stock: p.stock, seuil: p.seuil_alerte ?? 2, fournisseurId: p.fournisseur_id || "", codeBarre: p.code_barre || "", refOem: p.reference_oem || "", compat: p.compatibilite || "", frais: p.frais_unitaire || 0, carton: p.unites_par_carton || 1,
       prixDemiGros: p.prix_demi_gros || "", prixGros: p.prix_gros || "",
       seuilDemiGros: p.seuil_demi_gros ?? 3, seuilGros: p.seuil_gros ?? ((p.unites_par_carton || 0) > 1 ? p.unites_par_carton : ""),
       photo: p.photo || "" });
@@ -95,6 +108,7 @@ export default function Stock({ produits, boutiqueId, boutique, onRefresh, fourn
     const ancien = produits.find(p => p.id === editId) || null;
     const nouveau = {
       nom: editData.nom,
+      marque: (editData.marque || "").trim() || null,
       categorie: (editData.categorie || "").trim() || null,
       prix_achat: parseInt(editData.prixAchat) || 0,
       prix_vente: parseInt(editData.prixVente) || 0,
@@ -116,9 +130,9 @@ export default function Stock({ produits, boutiqueId, boutique, onRefresh, fourn
     if (error && estIndisponible(error)) {
       // Base pas encore migrée : on réessaie sans les colonnes récentes
       // (photo, tarifs gros) pour ne jamais bloquer la sauvegarde du produit.
-      const { photo, prix_demi_gros, prix_gros, seuil_demi_gros, seuil_gros, ...base } = nouveau;
+      const { photo, marque, prix_demi_gros, prix_gros, seuil_demi_gros, seuil_gros, ...base } = nouveau;
       ({ error } = await supabase.from("produits").update(base).eq("id", editId));
-      if (!error && (photo || prix_demi_gros || prix_gros)) onStatut && onStatut("⚠️ Produit enregistré, mais photo/tarifs gros nécessitent la mise à jour de la base (SUPABASE_TOUT_EN_UN.sql).");
+      if (!error && (photo || marque || prix_demi_gros || prix_gros)) onStatut && onStatut("⚠️ Produit enregistré, mais photo/marque/tarifs gros nécessitent la mise à jour de la base (SUPABASE_TOUT_EN_UN.sql).");
     }
     if (error) { setSauvegarde(false); onStatut && onStatut(msgErreur(error, "L'enregistrement")); return; }
     if (onAudit) await onAudit({ table: "produits", cibleId: editId, action: "modification", ancien, nouveau });
@@ -158,9 +172,14 @@ export default function Stock({ produits, boutiqueId, boutique, onRefresh, fourn
           <div style={{ fontWeight: "bold", color: C.text, fontSize: 13, marginBottom: 10 }}>➕ Nouveau produit</div>
           <input value={nouveau.nom} onChange={e => setNouveau(n => ({ ...n, nom: e.target.value }))}
             placeholder="Nom du produit *" autoFocus style={{ ...inputStyle, marginBottom: 6 }} />
-          <input value={nouveau.categorie} onChange={e => setNouveau(n => ({ ...n, categorie: e.target.value }))}
-            placeholder="Catégorie (ex: Freinage)" list="cats-nouveau" style={{ ...inputStyle, marginBottom: 6 }} />
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 6 }}>
+            <input value={nouveau.marque} onChange={e => setNouveau(n => ({ ...n, marque: e.target.value }))}
+              placeholder="Marque (ex: APSONIC)" list="marques-connues" style={inputStyle} />
+            <input value={nouveau.categorie} onChange={e => setNouveau(n => ({ ...n, categorie: e.target.value }))}
+              placeholder="Catégorie (ex: Freinage)" list="cats-nouveau" style={inputStyle} />
+          </div>
           <datalist id="cats-nouveau">{categories.map(c => <option key={c} value={c} />)}</datalist>
+          <datalist id="marques-connues">{marques.map(([m]) => <option key={m} value={m} />)}</datalist>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, marginBottom: 10 }}>
             <input type="number" inputMode="numeric" value={nouveau.prixAchat} onChange={e => setNouveau(n => ({ ...n, prixAchat: e.target.value }))} placeholder="Achat" style={inputStyle} />
             <input type="number" inputMode="numeric" value={nouveau.prixVente} onChange={e => setNouveau(n => ({ ...n, prixVente: e.target.value }))} placeholder="Vente" style={inputStyle} />
@@ -209,6 +228,20 @@ export default function Stock({ produits, boutiqueId, boutique, onRefresh, fourn
         ))}
       </div>
 
+      {/* FILTRE MARQUE (avec le nombre d'articles) */}
+      {marques.length > 0 && (
+        <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 6, marginBottom: 6, alignItems: "center" }}>
+          <span style={{ fontSize: 11, color: C.muted, flexShrink: 0 }}>🏷️ Marque :</span>
+          {[["toutes", `Toutes (${produits.length})`], ...marques.map(([m, n]) => [m, `${m} (${n})`]), ["_sans", "Sans marque"]].map(([id, label]) => (
+            <button key={id} onClick={() => setMarque(id)}
+              style={{ flexShrink: 0, padding: "5px 10px", borderRadius: 14, fontSize: 11, fontWeight: "bold", cursor: "pointer", whiteSpace: "nowrap",
+                border: `1px solid ${marque === id ? C.purple : C.border}`, background: marque === id ? C.purple + "22" : "transparent", color: marque === id ? C.purple : C.muted }}>
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* FILTRE CATÉGORIE */}
       {categories.length > 0 && (
         <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 6, marginBottom: 12 }}>
@@ -240,9 +273,14 @@ export default function Stock({ produits, boutiqueId, boutique, onRefresh, fourn
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 <input value={editData.nom} onChange={e => setEditData(d => ({ ...d, nom: e.target.value }))}
                   style={inputStyle} placeholder="Nom" />
-                <input value={editData.categorie} onChange={e => setEditData(d => ({ ...d, categorie: e.target.value }))}
-                  style={inputStyle} placeholder="Catégorie (ex: Filtres, Freinage...)" list="cats-stock" />
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+                  <input value={editData.marque} onChange={e => setEditData(d => ({ ...d, marque: e.target.value }))}
+                    style={inputStyle} placeholder="Marque (ex: APSONIC)" list="marques-stock" />
+                  <input value={editData.categorie} onChange={e => setEditData(d => ({ ...d, categorie: e.target.value }))}
+                    style={inputStyle} placeholder="Catégorie (ex: Freinage)" list="cats-stock" />
+                </div>
                 <datalist id="cats-stock">{categories.map(c => <option key={c} value={c} />)}</datalist>
+                <datalist id="marques-stock">{marques.map(([m]) => <option key={m} value={m} />)}</datalist>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6 }}>
                   <input type="number" value={editData.prixAchat} onChange={e => setEditData(d => ({ ...d, prixAchat: e.target.value }))}
                     style={inputStyle} placeholder="Achat" />
@@ -333,6 +371,7 @@ export default function Stock({ produits, boutiqueId, boutique, onRefresh, fourn
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontWeight: "bold", color: C.text, fontSize: 13 }}>
                     {p.nom}
+                    {p.marque && <span style={{ marginLeft: 6, fontSize: 9, fontWeight: "bold", color: C.purple, background: C.purple + "18", border: `1px solid ${C.purple}33`, borderRadius: 8, padding: "1px 6px" }}>{p.marque}</span>}
                     {p.categorie && <span style={{ marginLeft: 6, fontSize: 9, fontWeight: "bold", color: C.blue, background: C.blue + "18", border: `1px solid ${C.blue}33`, borderRadius: 8, padding: "1px 6px" }}>{p.categorie}</span>}
                   </div>
                   <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>
