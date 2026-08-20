@@ -26,6 +26,30 @@ export default function Stock({ produits, boutiqueId, boutique, onRefresh, fourn
   const [importOuvert, setImportOuvert] = useState(false);
   const [tri, setTri] = useState("stock");
   const [categorie, setCategorie] = useState("toutes");
+  const [creation, setCreation] = useState(false);
+  const [nouveau, setNouveau] = useState({ nom: "", categorie: "", prixAchat: "", prixVente: "", stock: "" });
+
+  const creerProduit = async () => {
+    const nom = (nouveau.nom || "").trim();
+    if (!nom) { onStatut && onStatut("⚠️ Donne un nom au produit."); return; }
+    if (produits.some(p => (p.nom || "").trim().toLowerCase() === nom.toLowerCase())) {
+      onStatut && onStatut(`ℹ️ « ${nom} » existe déjà dans le catalogue.`); return;
+    }
+    setSauvegarde(true);
+    const { error } = await supabase.from("produits").insert({
+      boutique_id: boutiqueId, nom,
+      categorie: (nouveau.categorie || "").trim() || null,
+      prix_achat: parseInt(nouveau.prixAchat) || 0,
+      prix_vente: parseInt(nouveau.prixVente) || 0,
+      stock: parseInt(nouveau.stock) || 0,
+    });
+    setSauvegarde(false);
+    if (error) { onStatut && onStatut(msgErreur(error, "La création")); return; }
+    setNouveau({ nom: "", categorie: "", prixAchat: "", prixVente: "", stock: "" });
+    setCreation(false);
+    onStatut && onStatut(`✅ « ${nom} » ajouté au catalogue. Touche ✏️ pour la photo et les tarifs gros.`);
+    onRefresh();
+  };
 
   // Catégories existantes (pour les boutons de filtre)
   const categories = useMemo(() => {
@@ -119,6 +143,38 @@ export default function Stock({ produits, boutiqueId, boutique, onRefresh, fourn
           <ImportStock produits={produits} boutiqueId={boutiqueId} onRefresh={onRefresh}
             onStatut={onStatut || (() => {})} onClose={() => setImportOuvert(false)} />
         </Suspense>
+      )}
+
+      {peutModifier && !creation && (
+        <button onClick={() => setCreation(true)}
+          style={{ width: "100%", padding: 12, marginBottom: 8, background: C.green, color: C.bg, border: "none", borderRadius: 8, fontWeight: "bold", fontSize: 14, cursor: "pointer" }}>
+          ➕ Nouveau produit
+        </button>
+      )}
+
+      {/* CRÉATION RAPIDE D'UN PRODUIT */}
+      {peutModifier && creation && (
+        <div style={{ background: C.surface, borderRadius: 8, border: `1px solid ${C.green}55`, padding: 14, marginBottom: 10 }}>
+          <div style={{ fontWeight: "bold", color: C.text, fontSize: 13, marginBottom: 10 }}>➕ Nouveau produit</div>
+          <input value={nouveau.nom} onChange={e => setNouveau(n => ({ ...n, nom: e.target.value }))}
+            placeholder="Nom du produit *" autoFocus style={{ ...inputStyle, marginBottom: 6 }} />
+          <input value={nouveau.categorie} onChange={e => setNouveau(n => ({ ...n, categorie: e.target.value }))}
+            placeholder="Catégorie (ex: Freinage)" list="cats-nouveau" style={{ ...inputStyle, marginBottom: 6 }} />
+          <datalist id="cats-nouveau">{categories.map(c => <option key={c} value={c} />)}</datalist>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, marginBottom: 10 }}>
+            <input type="number" inputMode="numeric" value={nouveau.prixAchat} onChange={e => setNouveau(n => ({ ...n, prixAchat: e.target.value }))} placeholder="Achat" style={inputStyle} />
+            <input type="number" inputMode="numeric" value={nouveau.prixVente} onChange={e => setNouveau(n => ({ ...n, prixVente: e.target.value }))} placeholder="Vente" style={inputStyle} />
+            <input type="number" inputMode="numeric" value={nouveau.stock} onChange={e => setNouveau(n => ({ ...n, stock: e.target.value }))} placeholder="Stock" style={inputStyle} />
+          </div>
+          <div style={{ display: "flex", gap: 6 }}>
+            <button onClick={() => setCreation(false)}
+              style={{ padding: "10px 14px", background: C.surface2, color: C.muted, border: `1px solid ${C.border}`, borderRadius: 8, cursor: "pointer", fontSize: 13 }}>Annuler</button>
+            <button onClick={creerProduit} disabled={sauvegarde}
+              style={{ flex: 1, padding: 10, background: sauvegarde ? C.muted : C.green, color: C.bg, border: "none", borderRadius: 8, fontWeight: "bold", fontSize: 14, cursor: "pointer" }}>
+              {sauvegarde ? "..." : "Créer le produit"}
+            </button>
+          </div>
+        </div>
       )}
 
       {peutModifier && (
