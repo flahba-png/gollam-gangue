@@ -56,6 +56,7 @@ Le menu de bureau suit désormais cette organisation. Les cases **manquantes** s
 
 ## ✅ Fait récemment
 
+- [x] **Balance intelligente** pour l'achat de cultures commerciales (cacao, café, anacarde, coton, hévéa…) : lecture directe de la balance USB/série avec détection du poids stable et capture automatique sac par sac, tare des sacs, réfaction humidité et impuretés, grade et prime, alertes anti-fraude, ticket de pesée WhatsApp/impression, entrée en stock en kg et dépense d'achat (ou « à payer »)
 - [x] **Entrées et Sorties de stock** en écrans dédiés (motif obligatoire à la sortie, rappel du stock en direct, 30 derniers mouvements sous le formulaire, auteur tracé)
 - [x] **Marque des produits** + filtre par marque avec compteur
 - [x] Bouton **➕ Nouveau produit** dans l'onglet Stock (il fallait passer par Saisie avant)
